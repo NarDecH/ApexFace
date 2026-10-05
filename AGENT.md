@@ -22,19 +22,35 @@
 
 ## 3) คำสั่งที่ใช้บ่อย
 
+**Launcher สำหรับใช้งานประจำวัน (ดับเบิลคลิก/ลากโฟลเดอร์วางได้):**
+
+```bat
+ApexFace.bat                :: เปิด GUI (เลือก build ให้เอง: CUDA -> CPU portable -> release)
+ApexFace.bat <folder>       :: เปิด GUI พร้อมชี้โฟลเดอร์รูปเริ่มต้น
+run-cli.bat <folder>        :: วิเคราะห์โฟลเดอร์แบบ CLI แล้วถามเปิดรายงาน (ลากโฟลเดอร์วางบนไฟล์ได้)
+build-and-run.bat           :: build แล้วเปิด GUI ทันที (ใช้ตอนแก้โค้ด)
+```
+
+**Build / แพ็กเกจ:**
+
 ```bat
 build.bat                          :: configure + build Release (MSVC x64)
 build.bat clean                    :: ลบ build/ แล้ว configure ใหม่
-scripts\run_gui.bat                :: รัน GUI พร้อม PATH ของ OpenCV DLL
-scripts\run_cli.bat <folder> ...   :: รัน CLI
+scripts\build_cpu.bat              :: build ApexFace แบบ CPU portable (ใช้ _tmp\ocv-cpu-install)
+scripts\build_opencv_cpu.bat       :: build OpenCV CPU-only แบบเล็ก (ครั้งแรกครั้งเดียว)
+scripts\package_release.bat        :: แพ็ก _release\ApexFace-<ver>-win64.zip
 ```
 
 - ถ้ารัน .exe ตรงๆ แล้วหา DLL ไม่เจอ ให้ copy `opencv_core4140.dll`, `opencv_imgproc4140.dll`,
   `opencv_imgcodecs4140.dll`, `opencv_objdetect4140.dll`, `opencv_dnn4140.dll` จาก
   `C:\_OpenCV\install\x64\vc17\bin\` ไปไว้ข้าง exe (เคยทำไว้แล้วใน `build/Release/`)
-- ทดสอบเร็ว: `build\Release\apexface-cli.exe samples --out _tmp\test_report`
+  — เวอร์ชัน CUDA ยังต้องเรียก `C:\_OpenCV\opencv-env.bat` ก่อน (launcher ทำให้แล้ว)
+- ทดสอบเร็ว: `run-cli.bat samples` หรือ `build\Release\apexface-cli.exe samples --out _tmp\test_report`
 - Calibrate คะแนน: รัน CLI ด้วย `--dump-metrics file.csv` กับรูปจริง แล้วดู quantiles
   (วิธีอยู่ใน `docs/RESEARCH.md` §5)
+
+**ข้อควรระวังเรื่อง .bat:** ห้ามใส่ `chcp 65001` กลางไฟล์ (ทำให้ parser อ่าน byte เพี้ยน) —
+ข้อความที่ echo ออกจอใช้ภาษาอังกฤษ (ASCII) ส่วนคำอธิบายภาษาไทยอยู่ใน `rem` เท่านั้น
 
 ## 4) โครงสร้างโค้ด
 

@@ -30,4 +30,4 @@ echo.
 echo [apexface] build OK:
 echo   build\Release\ApexFace.exe
 echo   build\Release\apexface-cli.exe
-echo Run with: scripts\run_gui.bat  or  scripts\run_cli.bat ^<folder^>
+echo Run with: ApexFace.bat (GUI)  or  run-cli.bat ^<folder^>

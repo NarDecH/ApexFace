@@ -116,6 +116,9 @@ in `third_party/` — no network access needed at build time. On other machines 
 
 ```
 ApexFace/
+├── ApexFace.bat        double-click launcher (picks CUDA/CPU/release build)
+├── run-cli.bat         drag & drop a photo folder to analyze it from the CLI
+├── build-and-run.bat   build + launch, for development
 ├── src/core/        detection, scoring, scanning, report, logging, settings
 ├── src/gui/         ImGui app + theme/fonts
 ├── src/app/         main_gui.cpp / main_cli.cpp
