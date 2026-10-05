@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ApexFace — Sharpest Face Finder · README</title>
+<style>
+:root{--bg:#0b0f17;--panel:#121826;--panel2:#0e1420;--line:#1f2937;--text:#e6eaf2;--muted:#8b95a7;--acc:#4f8cff;--acc2:#9333ea;--sky:#38bdf8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;line-height:1.65;font-size:15.5px}
+a{color:var(--sky);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px 70px}
+header{background:linear-gradient(135deg,#111a2e 0%,#1b1233 60%,#0b0f17 100%);border-bottom:1px solid var(--line);padding:46px 0 30px;margin-bottom:34px}
+h1{font-size:32px;display:flex;align-items:center;gap:12px}
+h1 .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:inline-flex;align-items:center;justify-content:center;font-size:22px}
+h2{font-size:22px;margin:38px 0 14px;display:flex;align-items:center;gap:10px}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+h3{font-size:17px;margin:24px 0 10px;color:#c7d2e5}
+p{margin:10px 0}
+.sub{color:var(--muted)}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:Cascadia Code,Consolas,monospace;font-size:13px;color:#a5d6ff}
+pre{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow-x:auto;margin:14px 0}
+pre code{background:none;border:none;padding:0;line-height:1.55}
+img{max-width:100%;border-radius:12px;border:1px solid var(--line);margin:14px 0}
+figure figcaption,.cap{color:var(--muted);font-size:13px;margin:-6px 0 14px}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
+th{color:var(--muted);text-transform:uppercase;font-size:11.5px;letter-spacing:.6px;text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+td{padding:9px 12px;border-bottom:1px solid var(--panel2);vertical-align:top}
+.badge{display:inline-block;border-radius:8px;padding:2px 10px;font-weight:700;font-size:13px;background:#1e293b;color:#93c5fd;margin:2px 4px 2px 0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:13px;color:var(--muted)}
+.chip b{color:var(--text)}
+nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 22px;margin:20px 0}
+nav.toc b{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px}
+nav.toc ol{margin:8px 0 0 20px}nav.toc li{margin:3px 0}
+footer{color:var(--muted);font-size:13px;margin-top:50px;text-align:center;border-top:1px solid var(--line);padding-top:18px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1><span class="logo">🔍</span>ApexFace — Sharpest Face Finder</h1>
+<p class="sub">Scan a folder · find the sharpest face in every photo · score it · report it. C++20 / OpenCV · GUI + CLI · CUDA or CPU.</p>
+<div class="chips">
+<span class="chip">Version <b>1.0.0</b></span><span class="chip">License <b>MIT</b></span>
+<span class="chip">Platform <b>Windows x64</b></span><span class="chip">Docs <b><a href="RESEARCH.html">Research</a> · <a href="CHANGELOG.html">Changelog</a></b></span>
+</div>
+</div></header>
+<div class="wrap">
+
+<nav class="toc"><b>Contents</b>
+<ol>
+<li><a href="#why">Why ApexFace?</a></li>
+<li><a href="#features">Features</a></li>
+<li><a href="#report">Report preview</a></li>
+<li><a href="#quickstart">Quick start</a></li>
+<li><a href="#score">How the score works</a></li>
+<li><a href="#build">Building from source</a></li>
+<li><a href="#layout">Project layout</a></li>
+<li><a href="#thai">เอกสารภาษาไทย (สรุป)</a></li>
+<li><a href="#credits">Credits &amp; licenses</a></li>
+</ol>
+</nav>
+
+<h2 id="why">Why ApexFace?</h2>
+<p>If you shoot events — races, weddings, group sessions — you end up with thousands of near
+identical frames where the <em>only</em> meaningful difference is whether the subject's face is
+critically sharp. ApexFace automates the triage:</p>
+<ul>
+<li><b>Pick the keeper automatically</b> — the best-scoring face per image is highlighted (#1) with a colored rating badge.</li>
+<li><b>Understand every score</b> — the report exposes the underlying metrics (Laplacian variance, Tenengrad, FFT high-frequency ratio, RMS contrast) per face.</li>
+<li><b>Go through thousands of photos fast</b> — multi-threaded pipeline, ~26 photos/s on a GTX 1060 for 24&nbsp;MP files.</li>
+<li><b>Get a shareable report</b> — a dark-themed HTML report with a hero card, top gallery, score distribution and filterable card grid, plus <code>data.csv</code>/<code>data.json</code> for scripting.</li>
+</ul>
+
+<h2 id="features">Features</h2>
+<table>
+<tr><th>Area</th><th>Details</th></tr>
+<tr><td>Detection</td><td>Google <b>YuNet</b> (2023mar, 232&nbsp;KB ONNX) via <code>cv::FaceDetectorYN</code>; auto <b>CUDA → CPU</b> fallback; boxes mapped back to full resolution</td></tr>
+<tr><td>Sharpness score</td><td>Weighted multi-metric score (0–100) with small-face attenuation; ratings <span class="badge" style="background:#10b981;color:#08130c">A+</span><span class="badge" style="background:#4ade80;color:#0a180e">A</span><span class="badge" style="background:#38bdf8;color:#08131b">B</span><span class="badge" style="background:#f59e0b;color:#1c1206">C</span><span class="badge" style="background:#ef4444;color:#1d0808">D</span></td></tr>
+<tr><td>GUI</td><td>Dear ImGui docking UI: native folder picker, live progress, results table, preview panel with per-face metrics, log viewer, EN/ไทย toggle</td></tr>
+<tr><td>CLI</td><td><code>apexface-cli &lt;folder&gt; [options]</code> for batch/scripted use, <code>--dump-metrics</code> for calibration</td></tr>
+<tr><td>Report</td><td><code>index.html</code> summary + paginated card pages + <code>data.csv</code> + <code>data.json</code> + annotated full-res copies + thumbnails</td></tr>
+<tr><td>Logging</td><td>Session <code>.log</code> (TRACE..ERROR, ms timestamps, categories) <b>and</b> structured <code>.events.jsonl</code>; log copied into every report</td></tr>
+<tr><td>Robustness</td><td>Unicode-safe file IO with EXIF orientation handling; skips its own output folders; per-file error isolation</td></tr>
+</table>
+
+<h2 id="report">Report preview</h2>
+<figure><img src="../assets/img/gui_results.png" alt="ApexFace GUI"><figcaption>GUI: dockable panels — controls, live results table, preview with per-face metrics, real-time log. English/Thai UI.</figcaption></figure>
+<figure><img src="../assets/img/report_summary.png" alt="ApexFace report"><figcaption>Summary page: hero card for the sharpest face in the folder, top gallery with score badges, score distribution.</figcaption></figure>
+<figure><img src="../assets/img/report_cards.png" alt="ApexFace cards page"><figcaption>Card grid with rating filters; every card links to the full annotated image.</figcaption></figure>
+
+<h2 id="quickstart">Quick start</h2>
+<h3>GUI</h3>
+<ol>
+<li>Download and unzip the release, run <code>ApexFace.exe</code>.</li>
+<li><b>Browse Folder…</b> → pick your photo folder.</li>
+<li><b>Start Analysis</b> → wait for <i>Report ready</i> → <b>Open Report</b>.</li>
+</ol>
+<h3>CLI</h3>
+<pre><code>apexface-cli.exe D:\photos --recursive --min-face 28 --backend auto --out D:\photos\_apexface_report</code></pre>
+<pre><code>=== ApexFace summary ===
+images      : 400
+with faces  : 400
+no face     : 0
+errors      : 0
+faces found : 708
+best score  : 83.11 (DEC00387.JPG)
+backend     : cuda
+elapsed     : 15.4 s</code></pre>
+<p class="sub">Options: <code>--out DIR · --no-recursive · --min-face N · --backend auto|cpu|cuda ·
+--workers N · --no-annotated · --no-csv · --no-json · --max-images N · --dump-metrics F · --quiet</code></p>
+
+<h2 id="score">How the score works</h2>
+<p>Each face is cropped (50% margin) at full resolution and scored by a weighted blend of classic focus measures:</p>
+<table>
+<tr><th>Metric</th><th>Weight</th><th>What it measures</th></tr>
+<tr><td>Laplacian variance</td><td>55%</td><td>Blur sensitivity (second-derivative energy)</td></tr>
+<tr><td>Tenengrad</td><td>35%</td><td>Sobel gradient magnitude energy</td></tr>
+<tr><td>FFT high-frequency ratio</td><td>10%</td><td>Share of spectral energy beyond r&nbsp;&gt;&nbsp;64 (256×256 crop)</td></tr>
+</table>
+<p>Faces narrower than 96&nbsp;px get their score attenuated (down to ×0.55). Rating bands:
+<b>A+ ≥ 85 · A ≥ 72 · B ≥ 58 · C ≥ 42 · D &lt; 42</b>. Full methodology and calibration:
+<a href="RESEARCH.html">docs/RESEARCH</a>.</p>
+<figure><img src="../assets/img/score_sharp.jpg" alt="Sharp face annotated" style="max-width:420px"></figure>
+
+<h2 id="build">Building from source</h2>
+<p>Requirements: <b>C++20</b>, CMake ≥ 3.20, OpenCV 4.x (with <code>objdetect</code> + <code>dnn</code>), MSVC 2022.
+On the dev machine OpenCV 4.14 + CUDA is preinstalled at <code>C:\_OpenCV\install</code> and registered with CMake.</p>
+<pre><code>git clone https://github.com/&lt;owner&gt;/ApexFace.git
+cd ApexFace
+build.bat          :: configure + build (MSVC x64, Release)
+scripts\run_gui.bat</code></pre>
+<p>Third-party libraries (Dear ImGui docking, GLFW 3.4, nativefiledialog-extended) are vendored
+in <code>third_party/</code> — no network access needed at build time. On other machines pass
+<code>-DOpenCV_DIR="C:/path/to/opencv/install"</code>.</p>
+
+<h2 id="layout">Project layout</h2>
+<pre><code>ApexFace/
+├── src/core/        detection, scoring, scanning, report, logging, settings
+├── src/gui/         ImGui app + theme/fonts
+├── src/app/         main_gui.cpp / main_cli.cpp
+├── models/          face_detection_yunet_2023mar.onnx
+├── fonts/           Sarabun (Thai-capable UI font, OFL)
+├── samples/         public-domain demo photos (incl. one synthetic blur)
+├── third_party/     imgui (docking) · glfw 3.4 · nativefiledialog-extended
+├── docs/            README / RESEARCH / CHANGELOG (.md + .html) + img
+└── assets/img/      screenshots &amp; diagrams</code></pre>
+
+<h2 id="thai">เอกสารภาษาไทย (สรุป)</h2>
+<p><b>ApexFace</b> คือโปรแกรมบนเดสก์ท็อป (C++/OpenCV) สำหรับ "หยิบโฟลเดอร์รูปมา แล้วหาว่ารูปไหน
+ใบหน้าคมชัดที่สุด" — เหมาะกับช่างภาพงานอีเวนต์ที่ต้องคัดรูปนับพันใบ</p>
+<ol>
+<li>เปิด <code>ApexFace.exe</code> → กด <b>เลือกโฟลเดอร์...</b> → กด <b>เริ่มวิเคราะห์</b></li>
+<li>ตรวจจับใบหน้าด้วยโมเดล YuNet (ใช้ GPU ถ้ามี ไม่มีก็สลับเป็น CPU อัตโนมัติ) แล้วให้คะแนนความคมชัด 0–100 <b>ต่อใบหน้า</b> (ไม่ใช่ต่อรูป) โดยวัดจาก Laplacian variance, Tenengrad และพลังงานความถี่สูงแบบ FFT</li>
+<li>ได้<b>รายงาน HTML</b>: รูปพร้อมกรอบหน้า + คะแนน + เกรด A+ ถึง D คัดกรองตามเกรดได้ พร้อม <code>data.csv</code>/<code>data.json</code></li>
+<li>ตัวเลือก: รวมโฟลเดอร์ย่อย, ขนาดใบหน้าต่ำสุด, จำนวนเธรด, บันทึกรูปพร้อมกรอบ, ภาษาไทย/อังกฤษ</li>
+<li>ทุกการรันมี<b>ไฟล์ log ละเอียด</b> (<code>.log</code> + <code>.events.jsonl</code>) ในโฟลเดอร์ output และแนบไปกับรายงาน</li>
+</ol>
+
+<h2 id="credits">Credits &amp; licenses</h2>
+<ul>
+<li><a href="https://opencv.org/">OpenCV</a> (Apache-2.0) — detection via <code>cv::FaceDetectorYN</code></li>
+<li><a href="https://github.com/opencv/opencv_zoo">YuNet face detection</a> model (Apache-2.0, OpenCV Zoo)</li>
+<li><a href="https://github.com/ocornut/imgui">Dear ImGui</a> (MIT) · <a href="https://www.glfw.org/">GLFW</a> (Zlib) · <a href="https://github.com/btzy/nativefiledialog-extended">nativefiledialog-extended</a> (Zlib)</li>
+<li><a href="https://fonts.google.com/specimen/Sarabun">Sarabun font</a> (SIL OFL 1.1)</li>
+<li>Sample photos in <code>samples/</code> are public domain (official White House portrait of Barack Obama — Pete Souza; Apollo 11 crew portrait — NASA; LBJ meeting with civil rights leaders — NASA/LBJ Library; Abraham Lincoln O-77 — Library of Congress). <code>apollo11_crew_blurred.jpg</code> is a synthetic Gaussian-blurred derivative created for demo purposes.</li>
+</ul>
+
+<footer>ApexFace 1.0.0 · MIT License · <a href="RESEARCH.html">Research</a> · <a href="CHANGELOG.html">Changelog</a></footer>
+</div>
+</body>
+</html>

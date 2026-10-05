@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ApexFace — Changelog</title>
+<style>
+:root{--bg:#0b0f17;--panel:#121826;--panel2:#0e1420;--line:#1f2937;--text:#e6eaf2;--muted:#8b95a7;--acc:#4f8cff;--acc2:#9333ea;--sky:#38bdf8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;line-height:1.65;font-size:15.5px}
+a{color:var(--sky);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:900px;margin:0 auto;padding:0 24px 70px}
+header{background:linear-gradient(135deg,#1b1233 0%,#111a2e 55%,#0b0f17 100%);border-bottom:1px solid var(--line);padding:46px 0 30px;margin-bottom:34px}
+h1{font-size:30px;display:flex;align-items:center;gap:12px}
+h1 .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--acc2),var(--acc));display:inline-flex;align-items:center;justify-content:center;font-size:22px}
+h2{font-size:21px;margin:30px 0 6px;display:flex;align-items:center;gap:12px}
+h2 .ver{background:linear-gradient(135deg,var(--acc),var(--acc2));border-radius:9px;padding:2px 12px;font-size:15px;font-weight:700;color:#fff}
+h2 .date{color:var(--muted);font-size:14px;font-weight:400}
+.sub{color:var(--muted)}
+ul{margin:10px 0 10px 22px}li{margin:5px 0}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:Cascadia Code,Consolas,monospace;font-size:13px;color:#a5d6ff}
+.tag{display:inline-block;min-width:74px;text-align:center;border-radius:7px;padding:1px 8px;font-size:12px;font-weight:700;margin-right:2px}
+.tag.add{background:#0d3324;color:#4ade80}.tag.chg{background:#0d2a44;color:#38bdf8}.tag.fix{background:#3a1d0d;color:#f59e0b}
+.release{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 26px;margin:18px 0}
+footer{color:var(--muted);font-size:13px;margin-top:50px;text-align:center;border-top:1px solid var(--line);padding-top:18px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1><span class="logo">📋</span>ApexFace Changelog</h1>
+<p class="sub">All notable changes are documented here. Format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>; versioning: SemVer. Markdown source: <a href="CHANGELOG.md">CHANGELOG.md</a>.</p>
+</div></header>
+<div class="wrap">
+
+<div class="release">
+<h2><span class="ver">1.0.0</span> <span class="date">— 2026-10-06</span></h2>
+<p class="sub">First public release.</p>
+<ul>
+<li><span class="tag add">Added</span> <b>Core engine</b> (<code>src/core/</code>): folder scanner (recursive, Unicode-safe, skips its own output), EXIF-orientation-aware image loading, YuNet face detection (<code>cv::FaceDetectorYN</code>) with automatic <b>CUDA → CPU</b> backend fallback and per-worker instances, multi-metric face sharpness scoring (Laplacian variance + Tenengrad + FFT high-frequency ratio + RMS contrast; 0–100 scale, A+/A/B/C/D ratings), thread pool with progress and cancel support.</li>
+<li><span class="tag add">Added</span> <b>GUI</b> (<code>ApexFace.exe</code>): Dear ImGui docking interface — native folder picker, source / detection / output options, live progress with ETA, results table with rating badges, preview panel with per-face metrics and annotated thumbnails, log panel with level filters, English/Thai language toggle, settings persisted to <code>config/settings.yml</code>.</li>
+<li><span class="tag add">Added</span> <b>CLI</b> (<code>apexface-cli.exe</code>): full engine access for batch use — <code>--out</code>, <code>--recursive</code>, <code>--min-face</code>, <code>--backend</code>, <code>--workers</code>, <code>--no-annotated</code>, <code>--no-csv</code>, <code>--no-json</code>, <code>--max-images</code>, <code>--dump-metrics</code>, <code>--quiet</code>.</li>
+<li><span class="tag add">Added</span> <b>HTML report</b>: summary page (stat cards, hero card for the folder's sharpest face, top gallery, score-distribution bars, error list), paginated card grid with per-rating filters, machine-readable <code>data.csv</code> + <code>data.json</code>, annotated full-resolution copies and 480&nbsp;px thumbnails with drawn face boxes and score labels.</li>
+<li><span class="tag add">Added</span> <b>Logging</b>: per-session <code>.log</code> file (TRACE–ERROR, millisecond timestamps, categories) plus structured <code>.events.jsonl</code> (per-image events with sizes, timings, face counts); session log copied into every report folder.</li>
+<li><span class="tag add">Added</span> <b>Docs</b>: README, <a href="RESEARCH.html">RESEARCH</a> (methodology, calibration data, benchmarks) and this changelog, each in Markdown and styled HTML, with screenshots and a pipeline diagram.</li>
+<li><span class="tag add">Added</span> Vendored third-party: Dear ImGui (docking), GLFW 3.4, nativefiledialog-extended; bundled YuNet ONNX model and Sarabun font (SIL OFL). Public-domain sample photos (incl. one synthetic blurred copy) for instant demos.</li>
+</ul>
+</div>
+
+<footer>ApexFace 1.0.0 · <a href="README.html">README</a> · <a href="RESEARCH.html">Research</a></footer>
+</div>
+</body>
+</html>

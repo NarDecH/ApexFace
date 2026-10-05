@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ApexFace Research — Methodology, Calibration &amp; Benchmarks</title>
+<style>
+:root{--bg:#0b0f17;--panel:#121826;--panel2:#0e1420;--line:#1f2937;--text:#e6eaf2;--muted:#8b95a7;--acc:#4f8cff;--acc2:#9333ea;--sky:#38bdf8;--emerald:#10b981}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;line-height:1.65;font-size:15.5px}
+a{color:var(--sky);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px 70px}
+header{background:linear-gradient(135deg,#0f1b12 0%,#111a2e 55%,#0b0f17 100%);border-bottom:1px solid var(--line);padding:46px 0 30px;margin-bottom:34px}
+h1{font-size:30px;display:flex;align-items:center;gap:12px}
+h1 .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--emerald),var(--acc));display:inline-flex;align-items:center;justify-content:center;font-size:22px}
+h2{font-size:22px;margin:38px 0 14px;display:flex;align-items:center;gap:10px}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+h3{font-size:17px;margin:24px 0 10px;color:#c7d2e5}
+p{margin:10px 0}
+.sub{color:var(--muted)}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:Cascadia Code,Consolas,monospace;font-size:13px;color:#a5d6ff}
+pre{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow-x:auto;margin:14px 0}
+pre code{background:none;border:none;padding:0;line-height:1.55}
+img{max-width:100%;border-radius:12px;border:1px solid var(--line);margin:14px 0}
+figcaption,.cap{color:var(--muted);font-size:13px;margin:-6px 0 14px}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
+th{color:var(--muted);text-transform:uppercase;font-size:11.5px;letter-spacing:.6px;text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+td{padding:9px 12px;border-bottom:1px solid var(--panel2);vertical-align:top}
+tr td:first-child{white-space:nowrap}
+nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 22px;margin:20px 0}
+nav.toc b{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px}
+nav.toc ol{margin:8px 0 0 20px}nav.toc li{margin:3px 0}
+.note{background:#12213a;border:1px solid #1e3a5f;border-left:4px solid var(--acc);border-radius:10px;padding:12px 18px;margin:14px 0;font-size:14.5px}
+footer{color:var(--muted);font-size:13px;margin-top:50px;text-align:center;border-top:1px solid var(--line);padding-top:18px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1><span class="logo">🔬</span>ApexFace Research</h1>
+<p class="sub">Methodology, calibration &amp; benchmarks — technical companion to the <a href="README.html">README</a>. Version 1.0.0 (October 2026).</p>
+</div></header>
+<div class="wrap">
+
+<nav class="toc"><b>Contents</b>
+<ol>
+<li><a href="#problem">Problem statement</a></li>
+<li><a href="#pipeline">Pipeline</a></li>
+<li><a href="#metrics">Sharpness metrics</a></li>
+<li><a href="#yunet">Why YuNet</a></li>
+<li><a href="#calibration">Calibration</a></li>
+<li><a href="#bench">Performance</a></li>
+<li><a href="#limits">Limitations</a></li>
+<li><a href="#future">Future work</a></li>
+</ol>
+</nav>
+
+<h2 id="problem">1. Problem statement</h2>
+<p>Event photographers (road races, weddings, group shoots) accumulate thousands of frames that
+differ mainly in whether the subject's <b>face</b> is critically sharp. Generic "best photo"
+pickers score the whole frame; ApexFace is deliberately narrow:</p>
+<ul>
+<li>detect faces per image,</li>
+<li>measure <b>focus/sharpness of each face region</b> at full resolution,</li>
+<li>pick the sharpest face per image with an interpretable 0–100 score,</li>
+<li>produce evidence (annotated images, metrics, logs) rather than a black-box ranking.</li>
+</ul>
+
+<h2 id="pipeline">2. Pipeline</h2>
+<figure><img src="../assets/img/pipeline.svg" alt="Pipeline diagram" style="background:#0e1420"></figure>
+<ol>
+<li><b>Folder scan</b> — non-recursive or recursive; JPEG/PNG/BMP/WebP/TIFF; skips dotfiles and any folder starting with <code>_apexface</code> (its own output) to keep re-runs clean.</li>
+<li><b>Decode</b> — bytes read with <code>std::ifstream</code> (full Unicode paths), decoded with <code>cv::imdecode</code>, then the <b>EXIF orientation</b> is applied manually (parsed from the APP1 segment) so detection boxes match what the user sees.</li>
+<li><b>Detection</b> — the image is downscaled so the longest side is ≤ 640&nbsp;px (rounded to /32), run through <b>YuNet</b> (<code>cv::FaceDetectorYN</code>), and boxes are mapped back to full resolution. Detections below <code>min-face</code> (default 28&nbsp;px) are dropped; results sorted by confidence.</li>
+<li><b>Scoring</b> — each face is cropped with a 50% margin from the <b>full-resolution</b> image (never from the downscaled detection image) and measured (§3).</li>
+<li><b>Outputs</b> — thumbnail with boxes/scores (always), optional full-resolution annotated copy, HTML report, CSV/JSON, and structured logs.</li>
+</ol>
+
+<h2 id="metrics">3. Sharpness metrics</h2>
+<p>For a face crop <code>g</code> (grayscale, 3×3 Gaussian σ = 0.8 prefilter to suppress sensor noise):</p>
+<table>
+<tr><th>Metric</th><th>Formula</th><th>Intuition</th></tr>
+<tr><td>Laplacian variance</td><td><code>var(∇²g)</code></td><td>The classic blur detector (Pech-Pacheco et al. 2000). In-focus optics produce high-frequency detail; defocus/motion blur attenuates exactly those frequencies.</td></tr>
+<tr><td>Tenengrad</td><td><code>mean(Gx² + Gy²)</code>, Sobel 3×3</td><td>Gradient-magnitude energy (Tenenbaum 1970). Robust complementary estimate of edge strength.</td></tr>
+<tr><td>FFT high-frequency ratio</td><td>energy beyond <code>r &gt; 64</code> ÷ total, on a 256×256 DFT of the crop</td><td>Spectral view of the same phenomenon; resists texture-scale bias a little and gives a bounded (0–1) signal.</td></tr>
+<tr><td>RMS contrast</td><td><code>std(g)</code></td><td>Reported for diagnosis; not weighted into the score.</td></tr>
+</table>
+<p><b>Score mapping.</b> Each metric is squashed to 0–100 with a soft saturation curve
+<code>100·x/(x+k)</code> (Laplacian, Tenengrad) or a linear cap (<code>fftHF/fftRef</code>), then combined:</p>
+<pre><code>score = (0.55·lapScore + 0.35·tenScore + 0.10·fftScore) · resFactor
+resFactor = faceW ≥ 96 px ? 1.0 : 0.55 + 0.45·(faceW/96)</code></pre>
+<p><code>resFactor</code> encodes a physical truth: a face that is only ~40&nbsp;px wide cannot carry
+fine detail regardless of optics. Constants (v1.0.0): <code>kLap = 350</code>,
+<code>kTen = 1200</code>, <code>fftRef = 0.0018</code>.</p>
+<p><b>Ratings.</b> <b>A+ ≥ 85 · A ≥ 72 · B ≥ 58 · C ≥ 42 · D &lt; 42</b> — band colors are used
+consistently in the GUI, annotations and report.</p>
+
+<h2 id="yunet">4. Why YuNet</h2>
+<table>
+<tr><th>Candidate</th><th>Verdict</th></tr>
+<tr><td>Haar cascade (built into OpenCV)</td><td>Dated accuracy, many false positives on profile/small faces</td></tr>
+<tr><td>MediaPipe / RetinaFace / SCRFD</td><td>More accurate at tiny faces but much heavier dependencies</td></tr>
+<tr><td><b>YuNet</b> ✅</td><td>232&nbsp;KB ONNX, state-of-the-art-per-byte, first-class OpenCV API (<code>cv::FaceDetectorYN</code>), runs on CPU <b>and</b> CUDA DNN backend</td></tr>
+</table>
+<p>Backend selection: <code>auto</code> tries CUDA (<code>DNN_BACKEND_CUDA</code> +
+<code>DNN_TARGET_CUDA</code>) with a warm-up forward pass; any failure falls back to CPU and is
+logged. CUDA mode shares one detector instance across workers (mutex); CPU mode gives every
+worker its own net.</p>
+
+<h2 id="calibration">5. Calibration</h2>
+<p>Score constants were calibrated on <b>400 real photos (Sony A7M3, 24&nbsp;MP, outdoor road race,
+708 detected faces)</b> — exactly the domain ApexFace targets. Raw metrics were dumped with
+<code>--dump-metrics</code> and inspected as quantiles:</p>
+<table>
+<tr><th></th><th>p05</th><th>p10</th><th>p25</th><th>p50</th><th>p75</th><th>p90</th><th>p99</th></tr>
+<tr><td>Laplacian variance</td><td>58</td><td>63</td><td>92</td><td>415</td><td>609</td><td>826</td><td>1244</td></tr>
+<tr><td>Tenengrad</td><td>367</td><td>497</td><td>1051</td><td>2614</td><td>3496</td><td>4614</td><td>6552</td></tr>
+<tr><td>FFT HF ratio</td><td>0.0002</td><td>—</td><td>—</td><td>0.0011</td><td>—</td><td>0.0016</td><td>0.0022</td></tr>
+<tr><td><b>score (v1.0.0)</b></td><td><b>17</b></td><td>—</td><td><b>31</b></td><td><b>60</b></td><td><b>68</b></td><td><b>74</b></td><td><b>80</b></td></tr>
+</table>
+<div class="note">The Laplacian distribution is clearly <b>bimodal</b> (motion-blurred faces cluster at
+60–100, in-focus faces at 400–1200), which is exactly what the score must separate. With
+<code>kLap = 350</code> the resulting score spreads across the rating bands instead of piling up
+at the top (the pre-calibration <code>kLap = 80</code> put p50 at 70 and p90 at 78 — everything
+looked like a keeper).</div>
+<p><b>Synthetic validation</b> — the same photo, with and without a Gaussian blur (σ = 7):</p>
+<div class="two">
+<figure><img src="../assets/img/score_sharp.jpg" alt="Sharp: 87.5"><figcaption>apollo11_crew.jpg → <b>87.5 (A+)</b></figcaption></figure>
+<figure><img src="../assets/img/score_blurred.jpg" alt="Blurred: 19.4"><figcaption>apollo11_crew_blurred.jpg (Gaussian σ=7, synthetic) → <b>19.4 (D)</b></figcaption></figure>
+</div>
+<p class="sub">The score tracks the physical blur, not file identity.</p>
+
+<h2 id="bench">6. Performance</h2>
+<p>GTX 1060 6GB, CUDA 12.9 build of OpenCV, 8 workers, 24&nbsp;MP (3936×2624) JPEG input:</p>
+<table>
+<tr><th>Run</th><th>Images</th><th>Faces</th><th>Wall time</th><th>Throughput</th></tr>
+<tr><td>Race folder (400 photos)</td><td>400</td><td>708</td><td>15.4 s</td><td><b>~26 img/s</b></td></tr>
+<tr><td>Demo samples (5 photos)</td><td>5</td><td>13</td><td>1.5 s</td><td>—</td></tr>
+</table>
+<p>Per-image budget (typical): decode 35–55 ms, detection 30–50 ms, scoring 10–80 ms (scales
+with face box size), thumbnail/annotated encode the remainder. Decode + encode dominate, so
+the CPU thread pool helps even when detection runs on the GPU.</p>
+
+<h2 id="limits">7. Limitations</h2>
+<ul>
+<li><b>Absolute scores are domain-relative.</b> A soft studio portrait (smooth skin, big face) scores lower than a grainy documentary shot at equal optical sharpness. Relative comparison <i>within a shoot</i> — the intended use case — is reliable; comparing scores across very different domains is not.</li>
+<li><b>Texture vs. sharpness.</b> Heavy film-like grain inflates gradient metrics; the 3×3 prefilter only partly compensates.</li>
+<li><b>Faces only.</b> "Sharp photo" in the abstract is not measured — eyes-open/expression are out of scope for v1.</li>
+<li>Detection sensitivity floors around <code>min-face</code> px; 16&nbsp;px faces are the practical minimum.</li>
+</ul>
+
+<h2 id="future">8. Future work</h2>
+<ul>
+<li>Eye-region weighting (align a canonical face template, weight the iris/lip ROI ×3).</li>
+<li>Learned no-reference IQA (BRISQUE/NIQE) as a fourth, cheap metric.</li>
+<li>Per-shoot adaptive calibration (normalize scores against the run's own distribution).</li>
+<li>GPU-side JPEG decode (nvJPEG) and video ingestion.</li>
+</ul>
+
+<footer>ApexFace 1.0.0 · <a href="README.html">README</a> · <a href="CHANGELOG.html">Changelog</a></footer>
+</div>
+</body>
+</html>

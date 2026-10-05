@@ -1,0 +1,28 @@
+# --- user photos & local test data (never publish) ---
+_photo/
+**/_photo/
+
+# --- build & dev artifacts ---
+build/
+build-cpu/
+_tmp/
+_release/
+_tmp/**/
+out/
+output/
+logs/
+config/
+*.user
+.vs/
+.vscode/
+_Copter/
+
+# --- generated reports ---
+**/_apexface_report/
+
+# --- keep model/fonts/samples tracked; ignore heavyweight junk elsewhere ---
+*.pth
+*.onnx.tmp
+
+# --- docs build leftovers ---
+docs/*.html.bak
