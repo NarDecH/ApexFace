@@ -124,7 +124,9 @@ private:
     std::thread worker_;
     std::vector<ImageResult> ui_;
     size_t consumed_ = 0;
-    int selected_ = -1;
+    int selected_ = -1;          // index into ui_
+    std::vector<int> order_;     // display order: ui_ indices sorted by file idx
+    bool orderDirty_ = false;
     fs::path outDir_;
     std::string outDirU8_;
     std::chrono::steady_clock::time_point runStart_;
@@ -342,6 +344,7 @@ void App::drainNewResults() {
         else if (r.status == "error") ++errCount_;
     }
     consumed_ = run_.all.size();
+    orderDirty_ = true; // workers finish out of order; keep the table in file order
 }
 
 void App::startRun() {
@@ -389,6 +392,8 @@ void App::startRun() {
     ui_.clear();
     consumed_ = 0;
     selected_ = -1;
+    order_.clear();
+    orderDirty_ = false;
     okCount_ = noFaceCount_ = errCount_ = faceCount_ = 0;
     bestBest_ = 0;
     bestFile_.clear();
@@ -624,11 +629,24 @@ void App::drawResults() {
         ImGui::TableSetupColumn("ms", ImGuiTableColumnFlags_WidthFixed, 62 * fontScale_);
         ImGui::TableHeadersRow();
 
+        // keep the table in file order even though workers finish out of order
+        if (orderDirty_) {
+            order_.resize(ui_.size());
+            for (int k = 0; k < (int)order_.size(); ++k) order_[k] = k;
+            std::stable_sort(order_.begin(), order_.end(),
+                             [&](int a, int b) { return ui_[a].idx < ui_[b].idx; });
+            orderDirty_ = false;
+        }
+
         ImGuiListClipper clipper;
-        clipper.Begin((int)ui_.size());
+        clipper.Begin((int)order_.size());
         while (clipper.Step()) {
-            for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+            for (int k = clipper.DisplayStart; k < clipper.DisplayEnd; ++k) {
+                const int i = order_[k];
                 const ImageResult& r = ui_[i];
+                // unique ID scope per row: widgets below (the rating button's
+                // label "A"/"B"/... in particular) repeat across visible rows
+                ImGui::PushID(r.idx);
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 char idx[16];
@@ -665,6 +683,7 @@ void App::drawResults() {
                 else ImGui::TextColored(rgb(239, 68, 68), "%s", tr_("error", "ผิดพลาด"));
                 ImGui::TableNextColumn();
                 ImGui::Text("%.0f", r.totalMs);
+                ImGui::PopID();
             }
         }
         ImGui::EndTable();

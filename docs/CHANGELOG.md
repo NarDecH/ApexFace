@@ -3,6 +3,22 @@
 All notable changes to ApexFace are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: SemVer.
 
+## [1.0.1] — 2026-10-06
+
+Hotfix release; binary in the v1.0.0 asset was replaced (same tag, updated zip).
+
+### Fixed
+- **GUI crash dialog** — "16 visible items with conflicting ID!" appeared whenever the
+  results table showed more than a couple of rows: the per-row rating button used its label
+  ("A", "B", …) as the widget ID, which repeated across rows. Every row now opens a unique
+  `PushID` scope.
+- **Results table order** — rows appeared in worker completion order instead of file order;
+  the table now always displays results sorted by file order.
+- **Throughput on large folders** — JPEG encoding of annotated images was serialized behind
+  a global mutex across all worker threads. Encoding is reentrant, so the mutex was removed;
+  with "Save annotated images" enabled this roughly triples throughput (~6.7 → ~18 photos/s
+  for 24 MP files on the dev machine).
+
 ## [1.0.0] — 2026-10-06
 
 First public release.

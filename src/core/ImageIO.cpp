@@ -3,11 +3,9 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <fstream>
-#include <mutex>
 
 namespace imageio {
 namespace {
-std::mutex imcodecMutex; // cv::imencode is not guaranteed thread-safe on all builds
 
 cv::Mat decodeFromMemory(const std::vector<uchar>& bytes, std::string& err) {
     if (bytes.size() < 16) {
@@ -42,7 +40,6 @@ cv::Mat loadBgr(const fs::path& file, std::string& errorOut) {
 }
 
 bool saveJpeg(const fs::path& file, const cv::Mat& bgr, int quality, std::string& errorOut) {
-    std::lock_guard<std::mutex> lock(imcodecMutex);
     errorOut.clear();
     std::vector<uchar> out;
     std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, quality};
