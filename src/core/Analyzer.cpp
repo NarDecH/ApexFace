@@ -136,6 +136,7 @@ ImageResult Analyzer::processOne(const fs::path& file, int idx, const AnalyzeOpt
                                  FaceDetector& det, const std::string& backendName) {
     ImageResult r;
     r.idx = idx;
+    r.srcPath = platform::utf8str(file);
     fs::path rel = fs::relative(file, opt.folder);
     r.relPath = platform::utf8str(rel);
     r.name = platform::utf8str(file.filename());
@@ -262,6 +263,7 @@ RunSummary Analyzer::run(const AnalyzeOptions& opt, const ResultFn& onResult,
 
     std::atomic<int> nextIdx{0};
     std::mutex onResultMtx;
+    std::vector<ImageResult> collected;
 
     // Wrap the caller's callback to aggregate summary stats (guarded by onResultMtx).
     ResultFn cb = [&](ImageResult&& r) {
@@ -274,6 +276,7 @@ RunSummary Analyzer::run(const AnalyzeOptions& opt, const ResultFn& onResult,
             sum.maxBest = r.bestScore;
             sum.maxFile = r.relPath;
         }
+        collected.push_back(r);
         onResult(std::move(r));
     };
 
@@ -320,8 +323,57 @@ RunSummary Analyzer::run(const AnalyzeOptions& opt, const ResultFn& onResult,
     sum.canceled = cancel.load();
     if (sum.canceled) AF_WARN("scan", "analysis canceled by user");
 
+    // Move grade-D / no-face originals into <folder>/_apexface_rejects
+    if (opt.moveRejects && !sum.canceled) {
+        fs::path rejRoot = opt.folder / "_apexface_rejects";
+        for (auto& r : collected) {
+            const bool reject = (r.status == "no_face") ||
+                                (r.status == "ok" && sharp::isGradeD(r.bestScore));
+            if (!reject || r.srcPath.empty()) continue;
+            std::error_code ec;
+            fs::path src = platform::utf8path(r.srcPath);
+            if (!fs::exists(src, ec)) continue;
+            fs::path rel = fs::relative(src, opt.folder, ec);
+            if (ec || rel.empty()) continue;
+            fs::path dst = rejRoot / rel;
+            fs::create_directories(dst.parent_path(), ec);
+            int alt = 1;
+            while (fs::exists(dst, ec)) {
+                dst = rejRoot / rel.parent_path() /
+                      (rel.stem().string() + "_" + std::to_string(alt++) + rel.extension().string());
+            }
+            fs::rename(src, dst, ec);
+            if (ec) { // cross-device fallback: copy + remove
+                std::error_code ec2;
+                fs::copy_file(src, dst, fs::copy_options::overwrite_existing, ec2);
+                if (!ec2) {
+                    fs::remove(src, ec2);
+                    if (ec2) { AF_WARN("scan", "moved but could not remove source: " << r.relPath); ec2.clear(); }
+                } else {
+                    ec = ec2;
+                }
+            }
+            if (ec) {
+                AF_ERROR("scan", "reject move failed for " << r.relPath << ": " << ec.message());
+                Logger::instance().event("move", "failed",
+                                         "\"file\":" + jsonStr(r.relPath) + ",\"error\":" + jsonStr(ec.message()));
+                continue;
+            }
+            r.movedTo = platform::utf8str(dst.generic_wstring());
+            ++sum.movedCount;
+            AF_INFO("scan", "moved grade-D reject: " << r.relPath << " -> " << r.movedTo);
+            Logger::instance().event("move", "done",
+                                     "\"file\":" + jsonStr(r.relPath) + ",\"to\":" + jsonStr(r.movedTo) +
+                                         ",\"best\":" + std::to_string(r.bestScore) +
+                                         ",\"status\":" + jsonStr(r.status));
+        }
+        AF_INFO("scan", "moved " << sum.movedCount << " reject file(s) to "
+                                 << platform::utf8str(rejRoot));
+    }
+
     if (sum.ok > 0) sum.avgBest /= sum.ok;
     sum.elapsedSec = msSince(runStart) / 1000.0;
+    sum.results = std::move(collected);
     AF_INFO("scan", "analysis finished in " << sum.elapsedSec << "s (ok=" << sum.ok
                                             << " noface=" << sum.noFace << " err=" << sum.errors << ")");
     Logger::instance().event("run", "end",

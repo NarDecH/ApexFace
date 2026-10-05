@@ -43,4 +43,8 @@ const char* ratingLabel(double score); // "A+","A","B","C","D"
 const char* ratingHex(double score);   // CSS color
 cv::Scalar ratingBgr(double score);    // OpenCV color
 
+// Grade D boundary: images whose best face scores below this (and images
+// where no face was found at all) are treated as rejects.
+inline bool isGradeD(double score) { return score < 42.0; }
+
 } // namespace sharp

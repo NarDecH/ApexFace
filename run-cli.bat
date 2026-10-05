@@ -24,8 +24,8 @@ if exist "build\Release\apexface-cli.exe" (
     set "EXE=build\Release\apexface-cli.exe"
 ) else if exist "build-cpu\Release\apexface-cli.exe" (
     set "EXE=build-cpu\Release\apexface-cli.exe"
-) else if exist "_release\ApexFace-1.0.0-win64\apexface-cli.exe" (
-    set "EXE=_release\ApexFace-1.0.0-win64\apexface-cli.exe"
+) else (
+    for /d %%D in ("_release\ApexFace-*-win64") do if exist "%%D\apexface-cli.exe" set "EXE=%%D\apexface-cli.exe"
 )
 if not defined EXE (
     echo [ApexFace] apexface-cli.exe not found. Run build.bat first.

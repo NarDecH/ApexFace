@@ -2,6 +2,9 @@
 
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+
+#include <cstdio>
+#include <cstdlib>
 #include <fstream>
 
 namespace imageio {
@@ -12,7 +15,10 @@ cv::Mat decodeFromMemory(const std::vector<uchar>& bytes, std::string& err) {
         err = "file too small";
         return {};
     }
-    cv::Mat img = cv::imdecode(bytes, cv::IMREAD_COLOR);
+    // IMREAD_IGNORE_ORIENTATION: newer OpenCV auto-applies EXIF orientation in
+    // imdecode; suppress that so loadBgr can apply it exactly once itself
+    // (works the same on older OpenCV that never auto-rotated).
+    cv::Mat img = cv::imdecode(bytes, cv::IMREAD_COLOR | cv::IMREAD_IGNORE_ORIENTATION);
     if (img.empty()) err = "decode failed (unsupported or corrupt image)";
     return img;
 }
@@ -112,16 +118,24 @@ int exifOrientation(const std::vector<uchar>& b) {
 }
 
 void applyOrientation(cv::Mat& img, int orientation) {
+    // Always write into a fresh Mat: in-place rotate/transpose/flip with
+    // src == dst is not guaranteed to work in OpenCV (and silently did
+    // nothing for 90-degree rotations in practice).
+    cv::Mat out;
+    if (getenv("APEXFACE_DEBUG_ORI"))
+        fprintf(stderr, "[applyOrientation] called with orientation=%d, img=%dx%d\n",
+                orientation, img.cols, img.rows);
     switch (orientation) {
-    case 2: cv::flip(img, img, 1); break;
-    case 3: cv::rotate(img, img, cv::ROTATE_180); break;
-    case 4: cv::flip(img, img, 0); break;
-    case 5: cv::transpose(img, img); break;
-    case 6: cv::rotate(img, img, cv::ROTATE_90_CLOCKWISE); break;
-    case 7: cv::transpose(img, img), cv::flip(img, img, 1); break;
-    case 8: cv::rotate(img, img, cv::ROTATE_90_COUNTERCLOCKWISE); break;
-    default: break;
+    case 2: cv::flip(img, out, 1); break;
+    case 3: cv::flip(img, out, -1); break;
+    case 4: cv::flip(img, out, 0); break;
+    case 5: cv::transpose(img, out); break;
+    case 6: cv::rotate(img, out, cv::ROTATE_90_CLOCKWISE); break;
+    case 7: cv::transpose(img, out); { cv::Mat f; cv::flip(out, f, 1); out = f; } break;
+    case 8: cv::rotate(img, out, cv::ROTATE_90_COUNTERCLOCKWISE); break;
+    default: return;
     }
+    img = out;
 }
 
 } // namespace imageio

@@ -23,6 +23,7 @@ bool Settings::load(const fs::path& file) {
         rb("exportAnnotated", exportAnnotated, true);
         rb("exportCsv", exportCsv, true);
         rb("exportJson", exportJson, true);
+        rb("moveRejects", moveRejects, false);
         ri("reportCardsPerPage", reportCardsPerPage, 200);
         rs("logLevel", logLevel, "trace");
         rs("lang", lang, "en");
@@ -47,6 +48,7 @@ bool Settings::save(const fs::path& file) const {
         f << "exportAnnotated" << exportAnnotated;
         f << "exportCsv" << exportCsv;
         f << "exportJson" << exportJson;
+        f << "moveRejects" << moveRejects;
         f << "reportCardsPerPage" << reportCardsPerPage;
         f << "logLevel" << logLevel;
         f << "lang" << lang;

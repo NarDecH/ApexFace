@@ -147,7 +147,8 @@ std::string badgeClass(double score) {
 std::string cardHtml(const ImageResult& r) {
     std::ostringstream o;
     o << "<div class=\"card" << (r.status == "error" ? " err" : "") << "\"";
-    if (!r.faces.empty()) o << " data-r=\"" << sharp::ratingLabel(r.bestScore) << "\"";
+    if (r.status == "no_face") o << " data-r=\"D\" data-nf=\"1\"";
+    else if (!r.faces.empty()) o << " data-r=\"" << sharp::ratingLabel(r.bestScore) << "\"";
     else o << " data-r=\"N\"";
     o << ">";
     if (!r.thumbRel.empty() && r.status != "error") {
@@ -159,8 +160,10 @@ std::string cardHtml(const ImageResult& r) {
         o << "<img loading=\"lazy\" src=\"" << hesc(r.thumbRel) << "\" alt=\"" << hesc(r.name) << "\">";
         if (!r.faces.empty()) {
             o << "<span class=\"badge " << badgeClass(r.bestScore) << "\">" << f1(r.bestScore) << "</span>";
+        } else if (r.status == "no_face") {
+            o << "<span class=\"badge bD\">D</span>";
         } else {
-            o << "<span class=\"badge bN\">no face</span>";
+            o << "<span class=\"badge bN\">error</span>";
         }
         o << (r.annotatedRel.empty() ? "</span>" : "</a>");
     }
@@ -170,7 +173,7 @@ std::string cardHtml(const ImageResult& r) {
         o << "<div class=\"sub\">" << r.faces.size() << (r.faces.size() == 1 ? " face" : " faces")
           << " &middot; " << r.width << "&times;" << r.height << " &middot; " << (int)r.totalMs << " ms</div>";
     } else if (r.status == "no_face") {
-        o << "<div class=\"sub\">no face &middot; " << r.width << "&times;" << r.height << "</div>";
+        o << "<div class=\"sub\">no face (grade D) &middot; " << r.width << "&times;" << r.height << "</div>";
     } else {
         o << "<div class=\"sub\">error: " << hesc(r.error) << "</div>";
     }
@@ -219,10 +222,12 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
     std::sort(ranked.begin(), ranked.end(),
               [](const ImageResult* a, const ImageResult* b) { return a->bestScore > b->bestScore; });
 
-    // rating distribution
+    // rating distribution: images with faces use their best score; no-face
+    // images count as grade D (score 0); errors are excluded
     int dist[5] = {0, 0, 0, 0, 0}; // A+, A, B, C, D
-    for (const auto* r : ranked) {
-        double s = r->bestScore;
+    for (const auto& r : results) {
+        if (r.status == "error") continue;
+        double s = r.status == "no_face" ? 0.0 : r.bestScore;
         dist[s >= 85 ? 0 : s >= 72 ? 1 : s >= 58 ? 2 : s >= 42 ? 3 : 4]++;
     }
     const char* distNames[5] = {"A+ (85-100)", "A (72-84)", "B (58-71)", "C (42-57)", "D (0-41)"};
@@ -239,8 +244,12 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
           << "<span class=\"chip\">Folder <b>" << hesc(opt.sourceFolderUtf8) << "</b></span>"
           << "<span class=\"chip\">Backend <b>" << hesc(sum.backend) << "</b></span>"
           << "<span class=\"chip\">Workers <b>" << sum.workers << "</b></span>"
-          << "<span class=\"chip\">Elapsed <b>" << f1(opt.elapsedSec) << "s</b></span>"
-          << "<span class=\"chip\">ApexFace <b>v" << APEXFACE_VERSION << "</b></span>"
+          << "<span class=\"chip\">Elapsed <b>" << f1(opt.elapsedSec) << "s</b></span>";
+        if (sum.movedCount > 0) {
+            o << "<span class=\"chip\" style=\"border-color:var(--amber)\">Moved <b>" << sum.movedCount
+              << "</b> grade-D file(s) to <b>_apexface_rejects</b></span>";
+        }
+        o << "<span class=\"chip\">ApexFace <b>v" << APEXFACE_VERSION << "</b></span>"
           << "</div></div></header><div class=\"wrap\">";
 
         o << "<div class=\"stats\">"
@@ -297,6 +306,17 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
             for (const auto& r : results) {
                 if (r.status != "error") continue;
                 o << "<tr><td>" << hesc(r.relPath) << "</td><td>" << hesc(r.error) << "</td></tr>";
+            }
+            o << "</table></details>";
+        }
+
+        if (sum.movedCount > 0) {
+            o << "<details><summary>Files moved to _apexface_rejects (" << sum.movedCount
+              << ")</summary><table>";
+            for (const auto& r : results) {
+                if (r.movedTo.empty()) continue;
+                o << "<tr><td>" << hesc(r.relPath) << "</td><td>&rarr; " << hesc(r.movedTo)
+                  << "</td></tr>";
             }
             o << "</table></details>";
         }
@@ -371,7 +391,8 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
         std::ostringstream o;
         o << "idx,rel_path,status,width,height,faces,best_face_idx,best_score,rating,"
              "box_x,box_y,box_w,box_h,lap_var,tenengrad,fft_hf,contrast_rms,res_factor,"
-             "conf,load_ms,detect_ms,analyze_ms,total_ms,backend,thumb,annotated\n";
+             "conf,load_ms,detect_ms,analyze_ms,total_ms,backend,thumb,annotated,moved_to\n";
+        auto csvEmpty = [&](int k) { for (int i = 0; i < k; ++i) o << ','; };
         for (const auto& r : results) {
             const FaceResult* bf = r.bestIdx >= 0 ? &r.faces[r.bestIdx] : nullptr;
             o << r.idx << ",\"" << r.relPath << "\"," << r.status << "," << r.width << "," << r.height
@@ -382,12 +403,16 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
                   << f2(bf->metrics.lapVar) << "," << f2(bf->metrics.tenengrad) << ","
                   << f4(bf->metrics.fftHF) << "," << f2(bf->metrics.contrastRMS) << ","
                   << f2(bf->resFactor) << "," << f2(bf->conf);
+            } else if (r.status == "no_face") {
+                // no face counts as grade D with score 0
+                o << "-1,0.0,D";
+                csvEmpty(10); // box, metrics, res_factor, conf
             } else {
-                o << ",,,,,,,,";
+                csvEmpty(13);
             }
             o << "," << f1(r.loadMs) << "," << f1(r.detectMs) << "," << f1(r.analyzeMs) << ","
               << f1(r.totalMs) << "," << r.backend << ",\"" << r.thumbRel << "\",\"" << r.annotatedRel
-              << "\"\n";
+              << "\",\"" << r.movedTo << "\"\n";
         }
         if (!writeFile(opt.outDir / "data.csv", o.str(), errorOut)) return false;
     }
@@ -425,7 +450,10 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
             if (r.bestIdx >= 0) o << ",\"best_index\":" << r.bestIdx << ",\"best_score\":" << jnum(r.bestScore);
             o << ",\"load_ms\":" << jnum(r.loadMs) << ",\"detect_ms\":" << jnum(r.detectMs)
               << ",\"total_ms\":" << jnum(r.totalMs) << ",\"thumb\":" << jstr(r.thumbRel)
-              << ",\"annotated\":" << jstr(r.annotatedRel) << "}";
+              << ",\"annotated\":" << jstr(r.annotatedRel) << ",\"moved_to\":" << jstr(r.movedTo)
+              << ",\"rating\":" << (r.bestIdx >= 0 ? jstr(sharp::ratingLabel(r.bestScore))
+                                   : r.status == "no_face" ? jstr("D") : std::string("null"))
+              << "}";
         }
         o << "]}";
         if (!writeFile(opt.outDir / "data.json", o.str(), errorOut)) return false;

@@ -2,7 +2,7 @@
 rem Package the portable Windows x64 release zip
 setlocal enabledelayedexpansion
 cd /d "%~dp0.."
-set "VER=1.0.0"
+set "VER=1.0.2"
 set "STG=_release\ApexFace-%VER%-win64"
 if not exist "build-cpu\Release\ApexFace.exe" (
     echo [package] build-cpu missing - run scripts\build_cpu.bat first

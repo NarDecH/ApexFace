@@ -3,6 +3,30 @@
 All notable changes to ApexFace are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: SemVer.
 
+## [1.0.2] — 2026-10-06
+
+### Fixed
+- **Portrait photos displayed sideways.** The JPEG decoder in recent OpenCV versions applies
+  the EXIF orientation automatically — and ApexFace then applied it a *second* time, rotating
+  portrait photos back to landscape (which also made faces in them undetectable). Decoding now
+  uses `IMREAD_IGNORE_ORIENTATION` and the orientation is applied exactly once, on every
+  OpenCV version.
+- `data.csv` rows for no-face/error images were missing columns; all rows now carry the full
+  schema.
+
+### Added
+- **Move rejects** — grade-D photos *and* photos where no face was found can be moved
+  automatically into a `_apexface_rejects` subfolder (keeping relative paths) of the source
+  folder after the run finishes. Enable with the GUI checkbox ("Move grade-D / no-face files")
+  or `--move-d` on the CLI. Originals are moved (never deleted); the report lists every moved
+  file, `data.csv` gains a `moved_to` column, and every move is logged.
+- **No-face photos are graded D** (score 0) instead of showing no rating — they now appear in
+  the D filter, the score distribution, and the reject move.
+
+### Changed
+- Log panel refreshes its buffer only when new lines arrive (less GUI overhead during very
+  large runs).
+
 ## [1.0.1] — 2026-10-06
 
 Hotfix release; binary in the v1.0.0 asset was replaced (same tag, updated zip).

@@ -12,7 +12,7 @@ rem
 rem  picks the best build available on this machine, in order:
 rem    1) build\Release\ApexFace.exe          (full CUDA dev build)
 rem    2) build-cpu\Release\ApexFace.exe      (portable CPU build)
-rem    3) _release\ApexFace-1.0.0-win64\...   (packaged release)
+rem    3) _release\ApexFace-*-win64\...       (packaged release)
 rem
 rem  วิธีใช้: ดับเบิลคลิก หรือ ลากโฟลเดอร์รูปมาวางบนไฟล์นี้
 rem ============================================================
@@ -24,8 +24,8 @@ if exist "build\Release\ApexFace.exe" (
     set "EXE=build\Release\ApexFace.exe"
 ) else if exist "build-cpu\Release\ApexFace.exe" (
     set "EXE=build-cpu\Release\ApexFace.exe"
-) else if exist "_release\ApexFace-1.0.0-win64\ApexFace.exe" (
-    set "EXE=_release\ApexFace-1.0.0-win64\ApexFace.exe"
+) else (
+    for /d %%D in ("_release\ApexFace-*-win64") do if exist "%%D\ApexFace.exe" set "EXE=%%D\ApexFace.exe"
 )
 
 if not defined EXE (

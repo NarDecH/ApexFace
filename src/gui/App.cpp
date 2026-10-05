@@ -171,7 +171,7 @@ int App::run(const wchar_t* initialFolderWide) {
 
     if (!glfwInit()) return 1;
     glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
-    window_ = glfwCreateWindow(1460, 940, "ApexFace 1.0.0 — Sharpest Face Finder", nullptr, nullptr);
+    window_ = glfwCreateWindow(1460, 940, "ApexFace " APEXFACE_VERSION " — Sharpest Face Finder", nullptr, nullptr);
     if (!window_) {
         glfwTerminate();
         return 1;
@@ -200,7 +200,7 @@ int App::run(const wchar_t* initialFolderWide) {
     ImGui_ImplGlfw_InitForOpenGL(window_, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    AF_INFO("gui", "ApexFace 1.0.0 GUI started (fontScale=" << fontScale_ << ", opencv " << CV_VERSION << ")");
+    AF_INFO("gui", "ApexFace " APEXFACE_VERSION " GUI started (fontScale=" << fontScale_ << ", opencv " << CV_VERSION << ")");
     Logger::instance().event("app", "start", "\"ui\":\"gui\",\"opencv\":\"" CV_VERSION "\"");
 
     while (!glfwWindowShouldClose(window_)) {
@@ -294,7 +294,7 @@ void App::drawMenuBar() {
 
     ImGui::SetNextWindowSize({560 * fontScale_, 0});
     if (ImGui::BeginPopupModal("About")) {
-        ImGui::Text("ApexFace 1.0.0");
+        ImGui::Text("ApexFace %s", APEXFACE_VERSION);
         ImGui::Separator();
         ImGui::TextUnformatted(tr_(
             "Find the sharpest face in every photo of a folder.\n"
@@ -380,6 +380,7 @@ void App::startRun() {
     o.backend = st_.backend == "cuda" ? Backend::CUDA : st_.backend == "cpu" ? Backend::CPU : Backend::Auto;
     o.workers = st_.workers;
     o.exportAnnotated = st_.exportAnnotated;
+    o.moveRejects = st_.moveRejects;
     o.modelPathUtf8 = platform::utf8str(model);
 
     {
@@ -441,7 +442,7 @@ void App::startRun() {
         std::vector<ImageResult> copy;
         {
             std::lock_guard<std::mutex> lk(run_.mtx);
-            copy = run_.all;
+            copy = run_.summary.results; // Analyzer returns the final (post-move) results
         }
         std::string err;
         std::string idxRel;
@@ -517,6 +518,16 @@ void App::drawControls() {
     ImGui::Checkbox("CSV", &st_.exportCsv);
     ImGui::SameLine();
     ImGui::Checkbox("JSON", &st_.exportJson);
+    ImGui::Checkbox(tr_("Move grade-D / no-face files to '_apexface_rejects'",
+                        "ย้ายไฟล์เกรด D / ไม่พบใบหน้า ไป '_apexface_rejects'"),
+                    &st_.moveRejects);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%s",
+                          tr_("Moves the ORIGINAL photo files into <source folder>\\_apexface_rejects "
+                              "after the run finishes. Originals are moved, not deleted.",
+                              "ย้ายไฟล์รูปต้นฉบับไปที่ <โฟลเดอร์ต้นทาง>\\_apexface_rejects "
+                              "หลังการวิเคราะห์จบ (ย้าย ไม่ใช่ลบ)"));
+    }
 
     section(tr_("Run", "การทำงาน"));
     if (!run_.running) {
@@ -570,6 +581,12 @@ void App::drawControls() {
             ImGui::PushStyleColor(ImGuiCol_Text, rgb(74, 222, 128));
             ImGui::TextUnformatted(tr_("Report ready.", "รายงานพร้อมแล้ว"));
             ImGui::PopStyleColor();
+            if (run_.summary.movedCount > 0) {
+                ImGui::PushStyleColor(ImGuiCol_Text, rgb(245, 158, 11));
+                ImGui::TextWrapped("%s: %d -> %s", tr_("Moved rejects", "ย้ายไฟล์เกรด D แล้ว"),
+                                   run_.summary.movedCount, "_apexface_rejects");
+                ImGui::PopStyleColor();
+            }
             ImGui::PushStyleColor(ImGuiCol_Button, rgb(79, 140, 255));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rgb(106, 160, 255));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, rgb(62, 118, 226));
@@ -667,6 +684,8 @@ void App::drawResults() {
                 ImGui::TableNextColumn();
                 if (r.bestIdx >= 0) {
                     ImGui::TextColored(ratingColorVec(r.bestScore), "%.1f", r.bestScore);
+                } else if (r.status == "no_face") {
+                    ImGui::TextColored(ratingColorVec(0.0), "0.0");
                 } else ImGui::TextUnformatted("-");
                 ImGui::TableNextColumn();
                 if (r.bestIdx >= 0) {
@@ -675,6 +694,14 @@ void App::drawResults() {
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ratingColorVec(r.bestScore));
                     ImGui::PushStyleColor(ImGuiCol_Text, rgb(10, 14, 20));
                     ImGui::SmallButton(sharp::ratingLabel(r.bestScore));
+                    ImGui::PopStyleColor(4);
+                } else if (r.status == "no_face") {
+                    // no face found -> grade D
+                    ImGui::PushStyleColor(ImGuiCol_Button, ratingColorVec(0.0));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ratingColorVec(0.0));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ratingColorVec(0.0));
+                    ImGui::PushStyleColor(ImGuiCol_Text, rgb(10, 14, 20));
+                    ImGui::SmallButton("D");
                     ImGui::PopStyleColor(4);
                 } else ImGui::TextUnformatted("-");
                 ImGui::TableNextColumn();
@@ -824,7 +851,11 @@ void App::drawLogPanel() {
     ImGui::Separator();
 
     uint64_t ver = 0;
-    logLines_ = Logger::instance().snapshotGui(ver);
+    auto snap = Logger::instance().snapshotGui(ver);
+    if (ver != logVer_) {
+        logLines_ = std::move(snap); // only re-copy when the log actually changed
+        logVer_ = ver;
+    }
 
     ImGui::BeginChild("logscroll", {0, 0}, ImGuiChildFlags_None,
                       ImGuiWindowFlags_HorizontalScrollbar);

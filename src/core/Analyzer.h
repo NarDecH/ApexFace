@@ -37,6 +37,7 @@ struct AnalyzeOptions {
     bool exportAnnotated = true;
     std::string modelPathUtf8; // resolved by caller
     int maxImages = 0;         // 0 = no limit (useful for tests/demos)
+    bool moveRejects = false;  // move grade-D / no-face originals to <folder>/_apexface_rejects
 };
 
 struct FaceResult {
@@ -51,6 +52,7 @@ struct ImageResult {
     int idx = 0;
     std::string relPath;     // UTF-8, generic (forward) slashes
     std::string name;        // filename only
+    std::string srcPath;     // absolute UTF-8 path of the source file
     int width = 0, height = 0;
     std::vector<FaceResult> faces;
     int bestIdx = -1;
@@ -60,6 +62,7 @@ struct ImageResult {
     double loadMs = 0, detectMs = 0, analyzeMs = 0, totalMs = 0;
     std::string thumbRel;      // relative to outDir
     std::string annotatedRel;  // empty if not exported
+    std::string movedTo;       // relative path inside the source folder after a reject move
     std::string backend;
 };
 
@@ -72,6 +75,8 @@ struct RunSummary {
     std::string backend;
     int workers = 0;
     bool canceled = false;
+    int movedCount = 0;                 // files moved to _apexface_rejects (if enabled)
+    std::vector<ImageResult> results;   // final state of every result (post move)
 };
 
 class Analyzer {

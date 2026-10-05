@@ -30,7 +30,7 @@ namespace {
 
 void printUsage() {
     std::cout <<
-        "ApexFace 1.0.0 - find the sharpest face in every photo of a folder\n"
+        "ApexFace " APEXFACE_VERSION " - find the sharpest face in every photo of a folder\n"
         "\n"
         "Usage: apexface-cli <folder> [options]\n"
         "\n"
@@ -43,6 +43,8 @@ void printUsage() {
         "  --no-annotated       do not save full-resolution annotated copies\n"
         "  --no-csv             skip data.csv\n"
         "  --no-json            skip data.json\n"
+        "  --move-d             move grade-D / no-face originals to\n"
+        "                       <folder>/_apexface_rejects after the run\n"
         "  --max-images <n>     analyze only the first n images (testing)\n"
         "  --dump-metrics <f>   write per-face raw metrics CSV (calibration)\n"
         "  --quiet              less console output\n"
@@ -79,6 +81,7 @@ int main(int argc, char** argv) {
 
     std::string folderArg, outArg, backend = "auto", dumpMetrics;
     bool recursive = true, exportAnnotated = true, exportCsv = true, exportJson = true, quiet = false;
+    bool moveD = false;
     int minFace = 28, workers = 0, maxImages = 0;
 
     folderArg = argv[1];
@@ -95,6 +98,7 @@ int main(int argc, char** argv) {
         else if (a == "--no-annotated") exportAnnotated = false;
         else if (a == "--no-csv") exportCsv = false;
         else if (a == "--no-json") exportJson = false;
+        else if (a == "--move-d") moveD = true;
         else if (a == "--quiet") quiet = true;
         else {
             std::cerr << "unknown option: " << a << "\n";
@@ -124,7 +128,7 @@ int main(int argc, char** argv) {
     lc.consoleLevel = quiet ? LogLevel::Warn : LogLevel::Info;
     lc.fileLevel = LogLevel::Trace;
     Logger::instance().start(lc);
-    AF_INFO("cli", "ApexFace 1.0.0 CLI started");
+    AF_INFO("cli", "ApexFace " APEXFACE_VERSION " CLI started");
 
     AnalyzeOptions o;
     o.folder = folder;
@@ -134,11 +138,11 @@ int main(int argc, char** argv) {
     o.backend = backend == "cuda" ? Backend::CUDA : backend == "cpu" ? Backend::CPU : Backend::Auto;
     o.workers = workers;
     o.exportAnnotated = exportAnnotated;
+    o.moveRejects = moveD;
     o.modelPathUtf8 = platform::utf8str(model);
     o.maxImages = maxImages;
 
-    std::vector<ImageResult> results;
-    std::mutex resMtx;
+    std::mutex dumpMtx;
     std::ofstream dump;
     if (!dumpMetrics.empty()) {
         dump.open(platform::utf8path(dumpMetrics), std::ios::binary | std::ios::trunc);
@@ -155,7 +159,7 @@ int main(int argc, char** argv) {
         o,
         [&](ImageResult&& r) {
             if (!dumpMetrics.empty()) {
-                std::lock_guard<std::mutex> lk(resMtx);
+                std::lock_guard<std::mutex> lk(dumpMtx);
                 for (size_t i = 0; i < r.faces.size(); ++i) {
                     const FaceResult& f = r.faces[i];
                     dump << '"' << r.relPath << "\"," << i << ',' << f.score << ','
@@ -165,10 +169,6 @@ int main(int argc, char** argv) {
                          << f.metrics.fftHF << ',' << f.metrics.contrastRMS << ',' << f.resFactor
                          << ',' << f.conf << "\n";
                 }
-            }
-            {
-                std::lock_guard<std::mutex> lk(resMtx);
-                results.push_back(std::move(r));
             }
         },
         done, total, cancel, current);
@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
     ro.canceled = sum.canceled;
 
     std::string idxRel, err;
-    bool ok = ReportGenerator::generate(results, sum, ro, idxRel, err);
+    bool ok = ReportGenerator::generate(sum.results, sum, ro, idxRel, err);
     if (!ok) {
         std::cerr << "report generation failed: " << err << "\n";
         return 5;
@@ -214,8 +214,11 @@ int main(int argc, char** argv) {
               << "faces found : " << sum.totalFaces << "\n"
               << "best score  : " << sum.maxBest << " (" << sum.maxFile << ")\n"
               << "backend     : " << sum.backend << "\n"
-              << "workers     : " << sum.workers << "\n"
-              << "elapsed     : " << sum.elapsedSec << " s\n"
+              << "workers     : " << sum.workers << "\n";
+    if (sum.movedCount > 0)
+        std::cout << "moved D     : " << sum.movedCount << " -> "
+                  << platform::utf8str(folder / "_apexface_rejects") << "\n";
+    std::cout << "elapsed     : " << sum.elapsedSec << " s\n"
               << "report      : " << platform::utf8str(outDir / "index.html") << "\n";
     return sum.canceled ? 6 : 0;
 }
