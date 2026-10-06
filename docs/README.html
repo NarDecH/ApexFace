@@ -82,7 +82,7 @@ critically sharp. ApexFace automates the triage:</p>
 <tr><td>Move rejects</td><td>Optionally move grade-D / no-face originals into <code>_apexface_rejects/</code> after the run (GUI checkbox or <code>--move-d</code>), keeping relative paths — every move is logged and listed in the report</td></tr>
 <tr><td>GUI</td><td>Dear ImGui docking UI: native folder picker, live progress, results table, preview panel with per-face metrics, log viewer, EN/ไทย toggle</td></tr>
 <tr><td>CLI</td><td><code>apexface-cli &lt;folder&gt; [options]</code> for batch/scripted use, <code>--dump-metrics</code> for calibration</td></tr>
-<tr><td>Report</td><td><code>index.html</code> summary + paginated card pages + <code>data.csv</code> + <code>data.json</code> + annotated full-res copies + thumbnails</td></tr>
+<tr><td>Report</td><td><code>index.html</code> summary + paginated card pages + <code>data.csv</code> + <code>data.json</code> + annotated full-res copies + thumbnails — or turn the whole report off ("Generate HTML report" checkbox / <code>--no-report</code>) for a pure scoring pass</td></tr>
 <tr><td>Logging</td><td>Session <code>.log</code> (TRACE..ERROR, ms timestamps, categories) <b>and</b> structured <code>.events.jsonl</code>; log copied into every report</td></tr>
 <tr><td>Robustness</td><td>Unicode-safe file IO with EXIF orientation handling; skips its own output folders; per-file error isolation</td></tr>
 </table>
@@ -111,7 +111,7 @@ best score  : 83.11 (DEC00387.JPG)
 backend     : cuda
 elapsed     : 15.4 s</code></pre>
 <p class="sub">Options: <code>--out DIR · --no-recursive · --min-face N · --backend auto|cpu|cuda ·
---workers N · --no-annotated · --no-csv · --no-json · --move-d · --max-images N · --dump-metrics F · --quiet</code><br>
+--workers N · --no-annotated · --no-report · --no-csv · --no-json · --move-d · --max-images N · --dump-metrics F · --quiet</code><br>
 <code>--move-d</code> relocates grade-D and no-face originals into <code>&lt;folder&gt;\_apexface_rejects</code>
 after the run (moved, not deleted; every move is logged and listed in the report).</p>
 

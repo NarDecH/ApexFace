@@ -3,6 +3,15 @@
 All notable changes to ApexFace are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: SemVer.
 
+## [1.0.3] — 2026-10-06
+
+### Added
+- **Report toggle** — "Generate HTML report + CSV/JSON" checkbox in the GUI and `--no-report`
+  on the CLI turn a run into a pure scoring pass: no thumbnails, annotated copies, HTML, CSV
+  or JSON are written (fast and disk-friendly for a first screening of huge folders).
+  Move-rejects works independently of the toggle. When disabled the GUI shows
+  "Analysis finished (report generation was disabled)" instead of the report buttons.
+
 ## [1.0.2] — 2026-10-06
 
 ### Fixed

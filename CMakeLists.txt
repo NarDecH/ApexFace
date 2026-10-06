@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ApexFace VERSION 1.0.2 LANGUAGES C CXX)
+project(ApexFace VERSION 1.0.3 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,7 +58,7 @@ add_library(apexface_core STATIC
 )
 target_include_directories(apexface_core PUBLIC src)
 target_link_libraries(apexface_core PUBLIC ${OpenCV_LIBS})
-target_compile_definitions(apexface_core PUBLIC APEXFACE_VERSION="1.0.2")
+target_compile_definitions(apexface_core PUBLIC APEXFACE_VERSION="1.0.3")
 
 # ---------------------------------------------------------------------------
 # GUI application

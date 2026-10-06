@@ -36,7 +36,7 @@ critically sharp. ApexFace automates the triage:
 | Move rejects | Optionally move grade-D / no-face originals into `_apexface_rejects/` after the run (GUI checkbox or `--move-d`), keeping relative paths — every move is logged and listed in the report |
 | GUI | Dear ImGui docking UI: folder picker (native dialog), live progress, results table, preview panel with per-face metrics, log viewer, EN/ไทย toggle |
 | CLI | `apexface-cli <folder> [options]` for batch/scripted use, `--dump-metrics` for calibration |
-| Report | `index.html` summary + paginated card pages + `data.csv` + `data.json` + annotated full-res copies + thumbnails |
+| Report | `index.html` summary + paginated card pages + `data.csv` + `data.json` + annotated full-res copies + thumbnails — or turn the whole report off ("Generate HTML report" checkbox / `--no-report`) for a pure scoring pass |
 | Logging | Session `.log` (TRACE..ERROR, ms timestamps, categories) **and** structured `.events.jsonl` for machine analysis; log copied into every report |
 | Robustness | Unicode-safe file IO with EXIF orientation handling; skips its own output folders; per-file error isolation |
 
@@ -76,10 +76,12 @@ elapsed     : 15.4 s
 ```
 
 Options: `--out DIR · --no-recursive · --min-face N · --backend auto|cpu|cuda · --workers N ·
---no-annotated · --no-csv · --no-json · --move-d · --max-images N · --dump-metrics F · --quiet`
+--no-annotated · --no-report · --no-csv · --no-json · --move-d · --max-images N · --dump-metrics F · --quiet`
 
-`--move-d` relocates grade-D and no-face originals into `<folder>\_apexface_rejects` after the
-run (moved, not deleted; every move is logged and listed in the report).
+`--no-report` runs a pure scoring pass (no thumbnails, annotated copies, HTML, CSV or JSON —
+handy for screening huge folders quickly). `--move-d` relocates grade-D and no-face originals
+into `<folder>\_apexface_rejects` after the run (moved, not deleted; every move is logged and
+listed in the report).
 
 ## How the score works
 

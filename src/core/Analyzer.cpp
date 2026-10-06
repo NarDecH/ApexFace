@@ -185,26 +185,29 @@ ImageResult Analyzer::processOne(const fs::path& file, int idx, const AnalyzeOpt
     }
     r.status = r.faces.empty() ? "no_face" : "ok";
 
-    // Outputs: thumbnail always; annotated full-res copy optional.
+    // Outputs: thumbnail always (unless the whole report is disabled);
+    // annotated full-res copy optional.
     std::string fname = flatName(idx, platform::utf8str(file.stem()));
-    fs::path thumbPath = opt.outDir / "thumbs" / fname;
-    double tw = std::min<double>(480, img.cols);
-    double sc = tw / img.cols;
-    cv::Mat thumb;
-    cv::resize(img, thumb, {(int)std::lround(img.cols * sc), (int)std::lround(img.rows * sc)}, 0, 0,
-               cv::INTER_AREA);
-    drawResults(thumb, r, true);
-    imageio::saveJpeg(thumbPath, thumb, 88, err);
-    r.thumbRel = "thumbs/" + fname;
+    if (opt.generateReport) {
+        fs::path thumbPath = opt.outDir / "thumbs" / fname;
+        double tw = std::min<double>(480, img.cols);
+        double sc = tw / img.cols;
+        cv::Mat thumb;
+        cv::resize(img, thumb, {(int)std::lround(img.cols * sc), (int)std::lround(img.rows * sc)},
+                   0, 0, cv::INTER_AREA);
+        drawResults(thumb, r, true);
+        imageio::saveJpeg(thumbPath, thumb, 88, err);
+        r.thumbRel = "thumbs/" + fname;
 
-    if (opt.exportAnnotated && !r.faces.empty()) {
-        cv::Mat full = img.clone();
-        drawResults(full, r, true);
-        fs::path annPath = opt.outDir / "annotated" / fname;
-        if (imageio::saveJpeg(annPath, full, 90, err)) {
-            r.annotatedRel = "annotated/" + fname;
-        } else {
-            AF_WARN("report", "annotated save failed for " << r.relPath << ": " << err);
+        if (opt.exportAnnotated && !r.faces.empty()) {
+            cv::Mat full = img.clone();
+            drawResults(full, r, true);
+            fs::path annPath = opt.outDir / "annotated" / fname;
+            if (imageio::saveJpeg(annPath, full, 90, err)) {
+                r.annotatedRel = "annotated/" + fname;
+            } else {
+                AF_WARN("report", "annotated save failed for " << r.relPath << ": " << err);
+            }
         }
     }
     r.totalMs = msSince(t0);

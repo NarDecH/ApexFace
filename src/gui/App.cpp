@@ -63,6 +63,7 @@ struct RunState {
     std::vector<ImageResult> all;
     RunSummary summary;
     bool reportOk = false;
+    bool reportSkipped = false;
     std::string reportErr;
     std::atomic<int> done{0};
     std::atomic<int> total{0};
@@ -381,6 +382,7 @@ void App::startRun() {
     o.workers = st_.workers;
     o.exportAnnotated = st_.exportAnnotated;
     o.moveRejects = st_.moveRejects;
+    o.generateReport = st_.generateReport;
     o.modelPathUtf8 = platform::utf8str(model);
 
     {
@@ -423,6 +425,13 @@ void App::startRun() {
         }
         if (sum.backend == "init_failed") {
             std::lock_guard<std::mutex> lk(run_.mtx);
+            run_.reportDone = true;
+            run_.running = false;
+            return;
+        }
+        if (!o.generateReport) {
+            std::lock_guard<std::mutex> lk(run_.mtx);
+            run_.reportSkipped = true;
             run_.reportDone = true;
             run_.running = false;
             return;
@@ -518,6 +527,17 @@ void App::drawControls() {
     ImGui::Checkbox("CSV", &st_.exportCsv);
     ImGui::SameLine();
     ImGui::Checkbox("JSON", &st_.exportJson);
+    ImGui::Checkbox(tr_("Generate HTML report + CSV/JSON", "สร้างรายงาน HTML + CSV/JSON"),
+                    &st_.generateReport);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%s",
+                          tr_("When off, the run is a pure scoring pass: no thumbnails, annotated "
+                              "copies, HTML, CSV or JSON are written (fast, saves disk on huge "
+                              "folders). Move-rejects still works.",
+                              "เมื่อปิด จะเป็นการให้คะแนนอย่างเดียว: ไม่เขียน thumbnail, รูปพร้อมกรอบ, "
+                              "HTML, CSV หรือ JSON (เร็วและประหยัดพื้นที่กับชุดใหญ่) — ส่วนการย้ายไฟล์ "
+                              "เกรด D ยังทำงานตามปกติ"));
+    }
     ImGui::Checkbox(tr_("Move grade-D / no-face files to '_apexface_rejects'",
                         "ย้ายไฟล์เกรด D / ไม่พบใบหน้า ไป '_apexface_rejects'"),
                     &st_.moveRejects);
@@ -577,6 +597,16 @@ void App::drawControls() {
             ImGui::TextWrapped("%s", tr_("Detector init failed — see the Log panel.",
                                          "เริ่มตัวตรวจจับไม่สำเร็จ — ดูแผงบันทึกการทำงาน"));
             ImGui::PopStyleColor();
+        } else if (run_.reportSkipped) {
+            if (run_.summary.movedCount > 0) {
+                ImGui::PushStyleColor(ImGuiCol_Text, rgb(245, 158, 11));
+                ImGui::TextWrapped("%s: %d -> %s", tr_("Moved rejects", "ย้ายไฟล์เกรด D แล้ว"),
+                                   run_.summary.movedCount, "_apexface_rejects");
+                ImGui::PopStyleColor();
+            }
+            ImGui::TextDisabled("%s",
+                                tr_("Analysis finished (report generation was disabled).",
+                                    "วิเคราะห์เสร็จแล้ว (ปิดการสร้างรายงานไว้)"));
         } else if (run_.reportOk) {
             ImGui::PushStyleColor(ImGuiCol_Text, rgb(74, 222, 128));
             ImGui::TextUnformatted(tr_("Report ready.", "รายงานพร้อมแล้ว"));

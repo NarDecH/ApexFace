@@ -38,6 +38,7 @@ struct AnalyzeOptions {
     std::string modelPathUtf8; // resolved by caller
     int maxImages = 0;         // 0 = no limit (useful for tests/demos)
     bool moveRejects = false;  // move grade-D / no-face originals to <folder>/_apexface_rejects
+    bool generateReport = true; // false = scoring pass only: no thumbs/annotated files
 };
 
 struct FaceResult {

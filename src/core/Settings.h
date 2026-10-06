@@ -15,6 +15,7 @@ struct Settings {
     bool exportAnnotated = true;
     bool exportCsv = true;
     bool exportJson = true;
+    bool generateReport = true; // false = scoring pass only: no thumbs/annotated/HTML/CSV/JSON
     bool moveRejects = false;   // move grade-D / no-face files to <folder>/_apexface_rejects
     int reportCardsPerPage = 200;
     std::string logLevel = "trace"; // trace | debug | info | warn | error

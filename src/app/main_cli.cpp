@@ -41,6 +41,7 @@ void printUsage() {
         "  --backend <name>     auto | cpu | cuda   (default auto)\n"
         "  --workers <n>        worker threads (0 = auto)\n"
         "  --no-annotated       do not save full-resolution annotated copies\n"
+        "  --no-report          scoring pass only: no thumbnails/annotated/HTML/CSV/JSON\n"
         "  --no-csv             skip data.csv\n"
         "  --no-json            skip data.json\n"
         "  --move-d             move grade-D / no-face originals to\n"
@@ -81,7 +82,7 @@ int main(int argc, char** argv) {
 
     std::string folderArg, outArg, backend = "auto", dumpMetrics;
     bool recursive = true, exportAnnotated = true, exportCsv = true, exportJson = true, quiet = false;
-    bool moveD = false;
+    bool moveD = false, generateReport = true;
     int minFace = 28, workers = 0, maxImages = 0;
 
     folderArg = argv[1];
@@ -96,6 +97,7 @@ int main(int argc, char** argv) {
         else if (a == "--max-images" && i + 1 < argc) maxImages = atoi(argv[++i]);
         else if (a == "--no-recursive") recursive = false;
         else if (a == "--no-annotated") exportAnnotated = false;
+        else if (a == "--no-report") generateReport = false;
         else if (a == "--no-csv") exportCsv = false;
         else if (a == "--no-json") exportJson = false;
         else if (a == "--move-d") moveD = true;
@@ -139,6 +141,7 @@ int main(int argc, char** argv) {
     o.workers = workers;
     o.exportAnnotated = exportAnnotated;
     o.moveRejects = moveD;
+    o.generateReport = generateReport;
     o.modelPathUtf8 = platform::utf8str(model);
     o.maxImages = maxImages;
 
@@ -200,10 +203,12 @@ int main(int argc, char** argv) {
     ro.canceled = sum.canceled;
 
     std::string idxRel, err;
-    bool ok = ReportGenerator::generate(sum.results, sum, ro, idxRel, err);
-    if (!ok) {
-        std::cerr << "report generation failed: " << err << "\n";
-        return 5;
+    if (generateReport) {
+        bool ok = ReportGenerator::generate(sum.results, sum, ro, idxRel, err);
+        if (!ok) {
+            std::cerr << "report generation failed: " << err << "\n";
+            return 5;
+        }
     }
 
     std::cout << "\n=== ApexFace summary ===\n"
@@ -219,6 +224,8 @@ int main(int argc, char** argv) {
         std::cout << "moved D     : " << sum.movedCount << " -> "
                   << platform::utf8str(folder / "_apexface_rejects") << "\n";
     std::cout << "elapsed     : " << sum.elapsedSec << " s\n"
-              << "report      : " << platform::utf8str(outDir / "index.html") << "\n";
+              << "report      : "
+              << (generateReport ? platform::utf8str(outDir / "index.html") : std::string("(disabled)"))
+              << "\n";
     return sum.canceled ? 6 : 0;
 }
