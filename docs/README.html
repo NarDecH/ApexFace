@@ -77,8 +77,9 @@ critically sharp. ApexFace automates the triage:</p>
 <h2 id="features">Features</h2>
 <table>
 <tr><th>Area</th><th>Details</th></tr>
-<tr><td>Detection</td><td>Google <b>YuNet</b> (2023mar, 232&nbsp;KB ONNX) via <code>cv::FaceDetectorYN</code>; auto <b>CUDA → CPU</b> fallback; boxes mapped back to full resolution</td></tr>
-<tr><td>Sharpness score</td><td>Weighted multi-metric score (0–100) with small-face attenuation; ratings <span class="badge" style="background:#10b981;color:#08130c">A+</span><span class="badge" style="background:#4ade80;color:#0a180e">A</span><span class="badge" style="background:#38bdf8;color:#08131b">B</span><span class="badge" style="background:#f59e0b;color:#1c1206">C</span><span class="badge" style="background:#ef4444;color:#1d0808">D</span></td></tr>
+<tr><td>Detection</td><td>Google <b>YuNet</b> (2023mar, 232&nbsp;KB ONNX) via <code>cv::FaceDetectorYN</code>; auto <b>CUDA → CPU</b> fallback; boxes mapped back to full resolution; EXIF orientation handled correctly for portrait/landscape mixes</td></tr>
+<tr><td>Sharpness score</td><td>Weighted multi-metric score (0–100) with small-face attenuation; ratings <span class="badge" style="background:#10b981;color:#08130c">A+</span><span class="badge" style="background:#4ade80;color:#0a180e">A</span><span class="badge" style="background:#38bdf8;color:#08131b">B</span><span class="badge" style="background:#f59e0b;color:#1c1206">C</span><span class="badge" style="background:#ef4444;color:#1d0808">D</span>; no-face photos are graded D</td></tr>
+<tr><td>Move rejects</td><td>Optionally move grade-D / no-face originals into <code>_apexface_rejects/</code> after the run (GUI checkbox or <code>--move-d</code>), keeping relative paths — every move is logged and listed in the report</td></tr>
 <tr><td>GUI</td><td>Dear ImGui docking UI: native folder picker, live progress, results table, preview panel with per-face metrics, log viewer, EN/ไทย toggle</td></tr>
 <tr><td>CLI</td><td><code>apexface-cli &lt;folder&gt; [options]</code> for batch/scripted use, <code>--dump-metrics</code> for calibration</td></tr>
 <tr><td>Report</td><td><code>index.html</code> summary + paginated card pages + <code>data.csv</code> + <code>data.json</code> + annotated full-res copies + thumbnails</td></tr>
@@ -110,7 +111,9 @@ best score  : 83.11 (DEC00387.JPG)
 backend     : cuda
 elapsed     : 15.4 s</code></pre>
 <p class="sub">Options: <code>--out DIR · --no-recursive · --min-face N · --backend auto|cpu|cuda ·
---workers N · --no-annotated · --no-csv · --no-json · --max-images N · --dump-metrics F · --quiet</code></p>
+--workers N · --no-annotated · --no-csv · --no-json · --move-d · --max-images N · --dump-metrics F · --quiet</code><br>
+<code>--move-d</code> relocates grade-D and no-face originals into <code>&lt;folder&gt;\_apexface_rejects</code>
+after the run (moved, not deleted; every move is logged and listed in the report).</p>
 
 <h2 id="score">How the score works</h2>
 <p>Each face is cropped (50% margin) at full resolution and scored by a weighted blend of classic focus measures:</p>

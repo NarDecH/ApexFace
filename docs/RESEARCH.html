@@ -134,9 +134,14 @@ looked like a keeper).</div>
 <p>GTX 1060 6GB, CUDA 12.9 build of OpenCV, 8 workers, 24&nbsp;MP (3936×2624) JPEG input:</p>
 <table>
 <tr><th>Run</th><th>Images</th><th>Faces</th><th>Wall time</th><th>Throughput</th></tr>
-<tr><td>Race folder (400 photos)</td><td>400</td><td>708</td><td>15.4 s</td><td><b>~26 img/s</b></td></tr>
+<tr><td>Full race folder — thumbnails only</td><td>9,416</td><td>—</td><td>399 s</td><td>~23.6 img/s</td></tr>
+<tr><td>Full race folder — full export (annotated copies + CSV/JSON)</td><td>9,308</td><td>19,745</td><td>558 s</td><td>~16.7 img/s</td></tr>
+<tr><td>Race folder sample (400 photos)</td><td>400</td><td>708</td><td>15.4 s</td><td>~26 img/s</td></tr>
 <tr><td>Demo samples (5 photos)</td><td>5</td><td>13</td><td>1.5 s</td><td>—</td></tr>
 </table>
+<p>Both full-folder runs finished with <b>0 errors</b>; the first pass moved 108 grade-D/no-face
+files to <code>_apexface_rejects</code>, and the second pass (post-move) detected a face in
+<b>every single remaining image</b> and scored the best one at <b>96.2 / 100</b>.</p>
 <p>Per-image budget (typical): decode 35–55 ms, detection 30–50 ms, scoring 10–80 ms (scales
 with face box size), thumbnail/annotated encode the remainder. Decode + encode dominate, so
 the CPU thread pool helps even when detection runs on the GPU.</p>

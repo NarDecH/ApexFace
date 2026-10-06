@@ -101,8 +101,14 @@ GTX 1060 6GB, CUDA 12.9 build of OpenCV, 8 workers, 24 MP (3936×2624) JPEG inpu
 
 | Run | Images | Faces | Wall time | Throughput |
 |---|---|---|---|---|
-| Race folder (400 photos) | 400 | 708 | 15.4 s | **~26 img/s** |
+| Full race folder — thumbnails only | 9,416 | — | 399 s | ~23.6 img/s |
+| Full race folder — full export (annotated copies + CSV/JSON) | 9,308 | 19,745 | 558 s | ~16.7 img/s |
+| Race folder sample (400 photos) | 400 | 708 | 15.4 s | ~26 img/s |
 | Demo samples (5 photos) | 5 | 13 | 1.5 s | — |
+
+Both full-folder runs finished with **0 errors**; the first pass moved 108 grade-D/no-face
+files to `_apexface_rejects`, and the second pass (post-move) detected a face in **every
+single remaining image** and scored the best one at **96.2 / 100**.
 
 Per-image budget (typical): decode 35–55 ms, detection 30–50 ms, scoring 10–80 ms
 (scales with face box size), thumbnail/annotated encode the remainder. Decode + encode

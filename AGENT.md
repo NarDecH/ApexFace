@@ -65,16 +65,27 @@ samples/     ภาพ public domain สำหรับ demo
 
 ## 5) ข้อตกลง/กับดักที่เคยเจอ
 
+- **OpenCV 4.14 หมุนภาพตาม EXIF ให้เองใน `cv::imdecode` แล้ว!** ห้ามหมุนซ้ำ — ปัจจุบัน
+  `imageio::loadBgr` decode ด้วย `IMREAD_IGNORE_ORIENTATION` แล้วหมุนเองหนึ่งครั้งด้วย
+  `applyOrientation` (รองรับทุกเวอร์ชัน OpenCV) — อย่ากลับไป decode แบบธรรมดาแล้วหมุนเอง
+  เพราะภาพแนวตั้งจะกลับเป็นแนวนอน (เคยเป็นบั๊กรุ่น 1.0.0) ตรวจสอบได้ด้วย
+  `tools/exif_test.exe <folder>` (build ผ่าน `scripts/build_exif_test.bat`) เทียบกับ
+  ground truth จาก GDI+ ผ่าน `scripts/dump_orientation.ps1`
+- **ห้าม rotate/transpose/flip แบบ in-place (`cv::rotate(img, img, ...)`)** — กับ src==dst
+  ไม่การันตีและเคยเงียบหายไปเลย ให้หมุนลง Mat ใหม่เสมอ (ดู `applyOrientation`)
 - **MSVC ไม่รองรับ `std::atomic<std::string>`** — ใช้ `CurrentFileReporter` (mutex) ใน `Analyzer.h`
 - **ImGui 1.92**: `PushFont(font, 0.0f)` เท่านั้น (เวอร์ชันพารามิเตอร์เดียวถูกลบ),
   `ImGui::Image` ใช้ `ImTextureRef`, uv0=(0,0) เมื่ออัปโหลด cv::Mat ตรงๆ
+- Widget ในลูปที่ label ซ้ำกัน (เช่น ปุ่มเกรด "A"/"B" ต่อแถว) ต้องครอบ `PushID`/`PopID`
+  ไม่งั้น ImGui เด้ง error dialog "items with conflicting ID" (เคยเป็นในรุ่น 1.0.0)
 - **`GL/gl.h` ต้อง include หลัง `<windows.h>`** และ `GL_BGR`/`GL_CLAMP_TO_EDGE` ต้อง
   define เองถ้าไม่มี
 - ทุกไฟล์ต้องคอมไพล์ด้วย `/utf-8` (มีข้อความไทยในซอร์ส)
 - อ่าน/เขียนไฟล์รูปต้องผ่าน `imageio::loadBgr/saveJpeg` เท่านั้น (รองรับ path ไทย/ยูนิโคด)
   — ห้ามใช้ `cv::imread/imwrite` กับ path ตรงๆ
 - ตรวจจับใบหน้าใช้ `cv::FaceDetectorYN` (objdetect) — อย่ากลับไปเรียก ONNX ผ่าน `cv::dnn` เอง
-- สแกนโฟลเดอร์จะข้ามโฟลเดอร์ที่ขึ้นต้นด้วย `_apexface` เสมอ (กันสแกนรายงานเก่าซ้ำ)
+- สแกนโฟลเดอร์จะข้ามโฟลเดอร์ที่ขึ้นต้นด้วย `_apexface` เสมอ (กันสแกนรายงานเก่าซ้ำ
+  และกันย้ายไฟล์ใน `_apexface_rejects` ซ้ำ)
 - Log ทุกเหตุการณ์สำคัญผ่าน `AF_INFO/AF_WARN/...` พร้อม category เช่น `scan`, `detect`, `gui`
   และ event แบบมีโครงสร้างผ่าน `Logger::event()` (จะไปอยู่ใน `*.events.jsonl`)
 
