@@ -109,8 +109,54 @@ std::vector<Detection> FaceDetector::detect(const cv::Mat& bgr, double& inferMs)
         bw = std::min(bgr.cols - x, bw);
         bh = std::min(bgr.rows - y, bh);
         if (bw < minFacePx_ || bh < minFacePx_) continue;
-        out.push_back({{x, y, bw, bh}, conf});
+        Detection det;
+        det.box = {x, y, bw, bh};
+        det.conf = conf;
+        // landmarks: [re, le, nose, r-mouth, l-mouth] in the scaled input space
+        for (int k = 0; k < 5; ++k) {
+            det.lm[k] = {(float)(r[4 + 2 * k] * invX), (float)(r[5 + 2 * k] * invY)};
+        }
+        out.push_back(std::move(det));
     }
     std::sort(out.begin(), out.end(), [](const Detection& a, const Detection& b) { return a.conf > b.conf; });
     return out;
+}
+
+FaceComponents FaceDetector::componentsOf(const Detection& d, const cv::Size& imgSize) {
+    FaceComponents c;
+    const cv::Rect& b = d.box;
+    const float tolX = 0.10f * b.width, tolY = 0.10f * b.height;
+    auto inside = [&](const cv::Point2f& p) {
+        // outside the image frame = the part is cropped away, never visible
+        if (p.x < 0 || p.y < 0 || p.x >= imgSize.width || p.y >= imgSize.height) return false;
+        return p.x >= b.x - tolX && p.x <= b.x + b.width + tolX && p.y >= b.y - tolY &&
+               p.y <= b.y + b.height + tolY;
+    };
+    c.rightEye = inside(d.lm[0]);
+    c.leftEye = inside(d.lm[1]);
+    c.nose = inside(d.lm[2]);
+    c.mouth = inside(d.lm[3]) && inside(d.lm[4]);
+    // degenerate geometry (landmarks bunching up in a strong profile) counts as missing too
+    const float eyeDist = (float)cv::norm(d.lm[0] - d.lm[1]);
+    const float mouthDist = (float)cv::norm(d.lm[3] - d.lm[4]);
+    if (eyeDist < 0.15f * b.width) c.rightEye = c.leftEye = false;
+    if (mouthDist < 0.15f * b.width) c.mouth = false;
+    if (getenv("APEXFACE_DEBUG_ORI"))
+        fprintf(stderr, "[components] box=(%d,%d %dx%d) re=(%.0f,%.0f) le=(%.0f,%.0f) nose=(%.0f,%.0f) "
+                        "rm=(%.0f,%.0f) lm=(%.0f,%.0f) -> eyes=%d%d mouth=%d\n",
+                b.x, b.y, b.width, b.height, d.lm[0].x, d.lm[0].y, d.lm[1].x, d.lm[1].y,
+                d.lm[2].x, d.lm[2].y, d.lm[3].x, d.lm[3].y, d.lm[4].x, d.lm[4].y,
+                (int)c.rightEye, (int)c.leftEye, (int)c.mouth);
+    return c;
+}
+
+std::string FaceDetector::missingText(const FaceComponents& c) {
+    std::string s;
+    if (!c.rightEye && !c.leftEye) s = "eyes";
+    else if (!c.rightEye || !c.leftEye) s = "an eye";
+    if (!c.mouth) {
+        if (!s.empty()) s += " + ";
+        s += "mouth";
+    }
+    return s;
 }

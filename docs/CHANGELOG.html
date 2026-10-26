@@ -33,6 +33,14 @@ footer{color:var(--muted);font-size:13px;margin-top:50px;text-align:center;borde
 <div class="wrap">
 
 <div class="release">
+<h2><span class="ver">1.0.4</span> <span class="date">— 2026-10-06</span></h2>
+<ul>
+<li><span class="tag add">Added</span> <b>Facial-completeness check (grade D)</b> — the YuNet landmarks (eyes, nose, mouth corners) are now used: if the best face of an image is missing key components — an eye or the mouth occluded, cropped by the frame edge, or a strong profile that collapses the landmark geometry — the image is graded <b>D</b> (score 0), listed with an amber "incomplete" status in the GUI, counted in its own report stat, included in the D filter/distribution, and moved by move-rejects like other rejects. Incomplete faces are excluded from best-face selection and drawn with an amber "D" box in thumbnails/annotated copies. Verified: a synthetic half-cropped face is detected as <code>incomplete (missing an eye + mouth)</code>, while 400 clean photos produce zero false positives.</li>
+<li><span class="tag fix">Fixed</span> Scanning a folder directly pointed at <code>_apexface_rejects</code> found 0 files (the own-output filter also matched the rejects folder itself). The filter now applies only to folders below the scanned root, so re-analyzing the rejects folder works.</li>
+</ul>
+</div>
+
+<div class="release">
 <h2><span class="ver">1.0.3</span> <span class="date">— 2026-10-06</span></h2>
 <ul>
 <li><span class="tag add">Added</span> <b>Report toggle</b> — "Generate HTML report + CSV/JSON" checkbox in the GUI and <code>--no-report</code> on the CLI turn a run into a pure scoring pass: no thumbnails, annotated copies, HTML, CSV or JSON are written (fast and disk-friendly for a first screening of huge folders). Move-rejects works independently of the toggle. When disabled the GUI shows "Analysis finished (report generation was disabled)" instead of the report buttons.</li>

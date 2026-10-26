@@ -215,6 +215,7 @@ int main(int argc, char** argv) {
               << "images      : " << sum.total << "\n"
               << "with faces  : " << sum.ok << "\n"
               << "no face     : " << sum.noFace << "\n"
+              << "incomplete  : " << sum.incomplete << "\n"
               << "errors      : " << sum.errors << "\n"
               << "faces found : " << sum.totalFaces << "\n"
               << "best score  : " << sum.maxBest << " (" << sum.maxFile << ")\n"

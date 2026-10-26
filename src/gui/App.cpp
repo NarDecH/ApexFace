@@ -135,7 +135,7 @@ private:
     std::string infoLine_;
 
     // incremental stats over ui_
-    int okCount_ = 0, noFaceCount_ = 0, errCount_ = 0, faceCount_ = 0;
+    int okCount_ = 0, noFaceCount_ = 0, incompleteCount_ = 0, errCount_ = 0, faceCount_ = 0;
     double bestBest_ = 0;
     std::string bestFile_;
 
@@ -342,6 +342,7 @@ void App::drainNewResults() {
                 if (selected_ < 0) selected_ = (int)ui_.size() - 1;
             }
         } else if (r.status == "no_face") ++noFaceCount_;
+        else if (r.status == "incomplete") ++incompleteCount_;
         else if (r.status == "error") ++errCount_;
     }
     consumed_ = run_.all.size();
@@ -397,7 +398,7 @@ void App::startRun() {
     selected_ = -1;
     order_.clear();
     orderDirty_ = false;
-    okCount_ = noFaceCount_ = errCount_ = faceCount_ = 0;
+    okCount_ = noFaceCount_ = incompleteCount_ = errCount_ = faceCount_ = 0;
     bestBest_ = 0;
     bestFile_.clear();
     clearTextures();
@@ -656,6 +657,8 @@ void App::drawResults() {
     statChip(tr_("images", "รูป"), std::to_string(ui_.size()), rgb(230, 234, 242));
     statChip(tr_("with faces", "มีใบหน้า"), std::to_string(okCount_), rgb(74, 222, 128));
     statChip(tr_("no face", "ไม่พบใบหน้า"), std::to_string(noFaceCount_), rgb(139, 149, 167));
+    statChip(tr_("incomplete", "ไม่ครบ"), std::to_string(incompleteCount_),
+             incompleteCount_ ? rgb(245, 158, 11) : rgb(230, 234, 242));
     statChip(tr_("errors", "ผิดพลาด"), std::to_string(errCount_), errCount_ ? rgb(239, 68, 68) : rgb(230, 234, 242));
     statChip(tr_("faces", "ใบหน้า"), std::to_string(faceCount_), rgb(56, 189, 248));
     statChip(tr_("best", "ดีที่สุด"), okCount_ ? f1s(bestBest_) : "-", rgb(79, 140, 255));
@@ -714,7 +717,7 @@ void App::drawResults() {
                 ImGui::TableNextColumn();
                 if (r.bestIdx >= 0) {
                     ImGui::TextColored(ratingColorVec(r.bestScore), "%.1f", r.bestScore);
-                } else if (r.status == "no_face") {
+                } else if (r.status == "no_face" || r.status == "incomplete") {
                     ImGui::TextColored(ratingColorVec(0.0), "0.0");
                 } else ImGui::TextUnformatted("-");
                 ImGui::TableNextColumn();
@@ -725,8 +728,8 @@ void App::drawResults() {
                     ImGui::PushStyleColor(ImGuiCol_Text, rgb(10, 14, 20));
                     ImGui::SmallButton(sharp::ratingLabel(r.bestScore));
                     ImGui::PopStyleColor(4);
-                } else if (r.status == "no_face") {
-                    // no face found -> grade D
+                } else if (r.status == "no_face" || r.status == "incomplete") {
+                    // no face / incomplete face -> grade D
                     ImGui::PushStyleColor(ImGuiCol_Button, ratingColorVec(0.0));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ratingColorVec(0.0));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ratingColorVec(0.0));
@@ -737,6 +740,7 @@ void App::drawResults() {
                 ImGui::TableNextColumn();
                 if (r.status == "ok") ImGui::TextColored(rgb(74, 222, 128), "%s", tr_("ok", "สำเร็จ"));
                 else if (r.status == "no_face") ImGui::TextColored(rgb(139, 149, 167), "%s", tr_("no face", "ไม่พบใบหน้า"));
+                else if (r.status == "incomplete") ImGui::TextColored(rgb(245, 158, 11), "%s", tr_("incomplete", "ไม่ครบ"));
                 else ImGui::TextColored(rgb(239, 68, 68), "%s", tr_("error", "ผิดพลาด"));
                 ImGui::TableNextColumn();
                 ImGui::Text("%.0f", r.totalMs);
@@ -839,12 +843,15 @@ void App::drawPreview() {
         ImGui::BulletText("%s %zu: %.1f", tr_("Face", "ใบหน้า"), i + 1, f.score);
         ImGui::PopStyleColor();
         ImGui::SameLine();
+        std::string extra = best ? " \xe2\x98\x85#1" : "";
+        if (f.incomplete) extra += std::string(" \xc2\xb7 missing: ") + f.missing;
         ImGui::TextDisabled("[%d,%d %dx%d]%s", f.box.x, f.box.y, f.box.width, f.box.height,
-                            best ? " \xe2\x98\x85#1" : "");
+                            extra.c_str());
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("lapVar=%.1f\ntenengrad=%.1f\nfftHF=%.3f\ncontrast=%.1f\nconf=%.2f",
+            ImGui::SetTooltip("lapVar=%.1f\ntenengrad=%.1f\nfftHF=%.3f\ncontrast=%.1f\nconf=%.2f%s%s",
                               f.metrics.lapVar, f.metrics.tenengrad, f.metrics.fftHF,
-                              f.metrics.contrastRMS, f.conf);
+                              f.metrics.contrastRMS, f.conf,
+                              f.incomplete ? "\nincomplete: " : "", f.incomplete ? f.missing.c_str() : "");
         }
     }
 

@@ -47,6 +47,9 @@ struct FaceResult {
     float conf = 0;
     sharp::Metrics metrics;
     double resFactor = 1;
+    bool incomplete = false; // missing key components (occluded eye / mouth / profile / cropped)
+    std::string missing;     // which parts, e.g. "an eye + mouth" (empty if complete)
+    FaceComponents components;
 };
 
 struct ImageResult {
@@ -58,7 +61,7 @@ struct ImageResult {
     std::vector<FaceResult> faces;
     int bestIdx = -1;
     double bestScore = 0;
-    std::string status;      // "ok" | "no_face" | "error"
+    std::string status;      // "ok" | "no_face" | "incomplete" | "error"
     std::string error;
     double loadMs = 0, detectMs = 0, analyzeMs = 0, totalMs = 0;
     std::string thumbRel;      // relative to outDir
@@ -68,7 +71,7 @@ struct ImageResult {
 };
 
 struct RunSummary {
-    int total = 0, ok = 0, noFace = 0, errors = 0;
+    int total = 0, ok = 0, noFace = 0, incomplete = 0, errors = 0;
     int totalFaces = 0;
     double maxBest = 0, avgBest = 0;
     std::string maxFile;

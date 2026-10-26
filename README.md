@@ -32,7 +32,7 @@ critically sharp. ApexFace automates the triage:
 | Area | Details |
 |---|---|
 | Detection | Google **YuNet** (2023mar, 232 KB ONNX) via `cv::FaceDetectorYN`; auto **CUDA → CPU** fallback; boxes mapped back to full resolution; EXIF orientation handled correctly for portrait/landscape mixes |
-| Sharpness score | Weighted multi-metric score (0–100) with small-face attenuation; ratings **A+ / A / B / C / D**; no-face photos are graded D |
+| Sharpness score | Weighted multi-metric score (0–100) with small-face attenuation; ratings **A+ / A / B / C / D**; no-face photos *and* faces missing components (occluded eye/mouth, profile, cropped by frame) are graded D |
 | Move rejects | Optionally move grade-D / no-face originals into `_apexface_rejects/` after the run (GUI checkbox or `--move-d`), keeping relative paths — every move is logged and listed in the report |
 | GUI | Dear ImGui docking UI: folder picker (native dialog), live progress, results table, preview panel with per-face metrics, log viewer, EN/ไทย toggle |
 | CLI | `apexface-cli <folder> [options]` for batch/scripted use, `--dump-metrics` for calibration |

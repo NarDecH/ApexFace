@@ -3,6 +3,24 @@
 All notable changes to ApexFace are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: SemVer.
 
+## [1.0.4] — 2026-10-06
+
+### Added
+- **Facial-completeness check (grade D)** — the YuNet landmarks (eyes, nose, mouth corners)
+  are now used: if the best face of an image is missing key components — an eye or the mouth
+  occluded, cropped by the frame edge, or a strong profile that collapses the landmark
+  geometry — the image is graded **D** (score 0), listed with an amber "incomplete" status in
+  the GUI, counted in its own report stat, included in the D filter/distribution, and moved
+  by move-rejects like other rejects. Incomplete faces are excluded from best-face selection
+  and drawn with an amber "D" box in thumbnails/annotated copies.
+  Verified: a synthetic half-cropped face is detected as `incomplete (missing an eye + mouth)`,
+  while 400 clean photos produce zero false positives.
+
+### Fixed
+- Scanning a folder directly pointed at `_apexface_rejects` found 0 files (the own-output
+  filter also matched the rejects folder itself). The filter now applies only to folders below
+  the scanned root, so re-analyzing the rejects folder works.
+
 ## [1.0.3] — 2026-10-06
 
 ### Added

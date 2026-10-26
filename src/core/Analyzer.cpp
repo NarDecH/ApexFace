@@ -75,11 +75,18 @@ void drawResults(cv::Mat& img, const ImageResult& r, bool watermark) {
     for (size_t i = 0; i < r.faces.size(); ++i) {
         const FaceResult& f = r.faces[i];
         bool best = (int)i == r.bestIdx;
-        cv::Scalar color = best ? sharp::ratingBgr(f.score) : cv::Scalar(160, 160, 160);
+        cv::Scalar color;
+        std::string label;
+        if (f.incomplete) {
+            color = {11, 158, 245}; // amber: missing components -> grade D
+            label = "D";
+        } else {
+            color = best ? sharp::ratingBgr(f.score) : cv::Scalar(160, 160, 160);
+            label = (std::ostringstream() << std::fixed << std::setprecision(1) << f.score
+                     << (best ? " #1" : ""))
+                        .str();
+        }
         cv::rectangle(img, f.box, color, best ? th + 2 : th, cv::LINE_AA);
-        std::string label = (std::ostringstream() << std::fixed << std::setprecision(1) << f.score
-                             << (best ? " #1" : ""))
-                                .str();
         int base = 0;
         cv::Size ts = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, fs, th + 1, &base);
         cv::Point org(f.box.x, std::max(ts.height + 10, f.box.y - 6));
@@ -109,9 +116,19 @@ std::vector<fs::path> Analyzer::scanFolder(const AnalyzeOptions& opt) {
         if (!p.has_filename() || p.filename().string().rfind(".", 0) == 0) return;
         if (fs::is_regular_file(p, e2) && isImageExt(p)) {
             if (!opt.outDir.empty() && platform::isDirInside(opt.outDir, p)) return; // skip own output
-            // skip any (re)generated report folders nested in the source tree
-            for (const auto& part : p)
-                if (part.string().rfind("_apexface", 0) == 0) return;
+            // Skip our own generated folders (report thumbs/annotated would pollute
+            // re-runs; moved rejects would be re-processed) - but only when they are
+            // BELOW the scanned folder, so pointing the scanner directly at
+            // _apexface_rejects still works.
+            std::error_code e3;
+            fs::path rel = fs::relative(p, opt.folder, e3);
+            if (!e3) {
+                for (const auto& part : rel) {
+                    std::string name = part.string();
+                    for (auto& ch : name) ch = (char)tolower((unsigned char)ch);
+                    if (name == "_apexface_report" || name == "_apexface_rejects") return;
+                }
+            }
             files.push_back(p);
         }
     };
@@ -172,18 +189,31 @@ ImageResult Analyzer::processOne(const fs::path& file, int idx, const AnalyzeOpt
         fr.score = s.final0to100;
         fr.resFactor = s.resFactor;
         fr.metrics = s.raw;
+        fr.components = FaceDetector::componentsOf(d, {img.cols, img.rows});
+        fr.incomplete = !fr.components.all();
+        fr.missing = FaceDetector::missingText(fr.components);
         r.faces.push_back(std::move(fr));
     }
     r.analyzeMs = msSince(t2);
 
+    // Best face = sharpest among COMPLETE faces; if every face is missing
+    // components (occluded eye/mouth, profile, cropped by the frame) the image
+    // itself is graded D.
     if (!r.faces.empty()) {
-        r.bestIdx = 0;
-        r.bestScore = r.faces[0].score;
-        for (size_t i = 1; i < r.faces.size(); ++i)
-            if (r.faces[i].score > r.faces[r.bestIdx].score) r.bestIdx = (int)i;
-        r.bestScore = r.faces[r.bestIdx].score;
+        for (size_t i = 0; i < r.faces.size(); ++i) {
+            if (r.faces[i].incomplete) continue;
+            if (r.bestIdx < 0 || r.faces[i].score > r.faces[r.bestIdx].score) r.bestIdx = (int)i;
+        }
+        if (r.bestIdx >= 0) {
+            r.bestScore = r.faces[r.bestIdx].score;
+            r.status = "ok";
+        } else {
+            r.bestScore = 0;
+            r.status = "incomplete";
+        }
+    } else {
+        r.status = "no_face";
     }
-    r.status = r.faces.empty() ? "no_face" : "ok";
 
     // Outputs: thumbnail always (unless the whole report is disabled);
     // annotated full-res copy optional.
@@ -272,6 +302,7 @@ RunSummary Analyzer::run(const AnalyzeOptions& opt, const ResultFn& onResult,
     ResultFn cb = [&](ImageResult&& r) {
         if (r.status == "ok") ++sum.ok;
         else if (r.status == "no_face") ++sum.noFace;
+        else if (r.status == "incomplete") ++sum.incomplete;
         else if (r.status == "error") ++sum.errors;
         sum.totalFaces += (int)r.faces.size();
         sum.avgBest += r.bestScore;
@@ -330,7 +361,7 @@ RunSummary Analyzer::run(const AnalyzeOptions& opt, const ResultFn& onResult,
     if (opt.moveRejects && !sum.canceled) {
         fs::path rejRoot = opt.folder / "_apexface_rejects";
         for (auto& r : collected) {
-            const bool reject = (r.status == "no_face") ||
+            const bool reject = (r.status == "no_face") || (r.status == "incomplete") ||
                                 (r.status == "ok" && sharp::isGradeD(r.bestScore));
             if (!reject || r.srcPath.empty()) continue;
             std::error_code ec;
