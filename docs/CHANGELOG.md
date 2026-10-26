@@ -3,6 +3,14 @@
 All notable changes to ApexFace are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: SemVer.
 
+## [1.0.5] — 2026-10-27
+
+### Added
+- **Application icon & logo** — the magnifier-on-face logo (drawn with OpenCV,
+  `tools/make_icon.cpp`) is embedded into `ApexFace.exe` (window, taskbar, Explorer) together
+  with a VERSIONINFO resource, and used as the logo in the README. Regenerate with
+  `scripts/make_icon.bat`.
+
 ## [1.0.4] — 2026-10-06
 
 ### Added

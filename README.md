@@ -1,4 +1,4 @@
-# 🔍 ApexFace — Sharpest Face Finder
+# <img src="assets/icon/apexface_256.png" width="44" align="top" alt="ApexFace logo"> ApexFace — Sharpest Face Finder
 
 **ApexFace** scans a folder of photos, finds **the sharpest face in every image**, scores it
 0–100, and generates a beautiful interactive HTML report with annotated images — face boxes,

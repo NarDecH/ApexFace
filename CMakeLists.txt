@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ApexFace VERSION 1.0.4 LANGUAGES C CXX)
+project(ApexFace VERSION 1.0.5 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,15 +58,22 @@ add_library(apexface_core STATIC
 )
 target_include_directories(apexface_core PUBLIC src)
 target_link_libraries(apexface_core PUBLIC ${OpenCV_LIBS})
-target_compile_definitions(apexface_core PUBLIC APEXFACE_VERSION="1.0.4")
+target_compile_definitions(apexface_core PUBLIC APEXFACE_VERSION="1.0.5")
 
 # ---------------------------------------------------------------------------
 # GUI application
 # ---------------------------------------------------------------------------
+# Windows resource: app icon (GLFW_ICON) + version info for Explorer
+# (forward slashes on purpose: rc.exe eats "\a" style escapes in quoted paths)
+set(APEXFACE_ICON_PATH_WIN "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/apexface.ico")
+string(REPLACE "." "," APEXFACE_FILEVER_CSV ${PROJECT_VERSION})
+configure_file(resources/apexface.rc.in ${CMAKE_CURRENT_BINARY_DIR}/apexface.rc @ONLY)
+
 add_executable(ApexFace WIN32
     src/app/main_gui.cpp
     src/gui/Theme.cpp
     src/gui/App.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/apexface.rc
 )
 target_link_libraries(ApexFace PRIVATE apexface_core imgui nfd opengl32)
 

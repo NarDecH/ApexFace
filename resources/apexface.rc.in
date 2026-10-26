@@ -1,0 +1,28 @@
+// ApexFace Windows resources: app icon (GLFW picks up GLFW_ICON for the
+// window class / taskbar) + version information shown in Explorer properties.
+GLFW_ICON ICON "@APEXFACE_ICON_PATH_WIN@"
+
+1 VERSIONINFO
+ FILEVERSION @APEXFACE_FILEVER_CSV@,0
+ PRODUCTVERSION @APEXFACE_FILEVER_CSV@,0
+ FILEOS 0x40004
+ FILETYPE 0x1
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "ApexFace contributors"
+      VALUE "FileDescription", "ApexFace - Sharpest Face Finder"
+      VALUE "FileVersion", "@PROJECT_VERSION@"
+      VALUE "InternalName", "ApexFace"
+      VALUE "OriginalFilename", "ApexFace.exe"
+      VALUE "ProductName", "ApexFace"
+      VALUE "ProductVersion", "@PROJECT_VERSION@"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 0x04B0
+  END
+END
