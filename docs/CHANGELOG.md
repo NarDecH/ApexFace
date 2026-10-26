@@ -28,6 +28,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 - **Unit tests + CI** — `tests/test_core.cpp` (rating boundaries, orientation, sharpness
   ordering, landmark completeness, EXIF) runs via ctest; GitHub Actions builds on
   windows-latest with OpenCV from vcpkg (manifest mode) and runs the tests on every push.
+- `--autorun` — `ApexFace.exe <folder> --autorun` starts the analysis immediately on launch
+  (demo and screen-capture friendly).
 
 ## [1.0.5] — 2026-10-27
 

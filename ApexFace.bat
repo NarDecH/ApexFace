@@ -39,6 +39,6 @@ echo [ApexFace] starting: %EXE%
 if "%~1"=="" (
     start "" "%EXE%"
 ) else (
-    start "" "%EXE%" "%~f1"
+    start "" "%EXE%" %*
 )
 exit /b 0

@@ -98,7 +98,7 @@ std::string f1s(double v) {
 
 class App {
 public:
-    int run(const wchar_t* initialFolderWide);
+    int run(const wchar_t* initialFolderWide, bool autoStart);
 
 private:
     // ------- UI panels
@@ -151,6 +151,7 @@ private:
     float fontScale_ = 1.f;
     ImFont* headingFont_ = nullptr;
     bool dockInit_ = true;
+    bool autoStart_ = false; // --autorun: start the analysis once the UI is up
 
     // log panel
     std::vector<Logger::Entry> logLines_;
@@ -162,11 +163,13 @@ private:
 
 // ---------------------------------------------------------------------------
 
-int App::run(const wchar_t* initialFolderWide) {
+int App::run(const wchar_t* initialFolderWide, bool autoStart) {
     st_.load(Settings::defaultPath());
     if (initialFolderWide) {
         st_.lastFolder = platform::utf8str(fs::path(initialFolderWide));
+        st_.addRecentFolder(st_.lastFolder);
     }
+    autoStart_ = autoStart;
     tr_.lang = st_.lang;
 
     Logger::Config lc;
@@ -224,6 +227,10 @@ int App::run(const wchar_t* initialFolderWide) {
             buildDockLayout(dsid);
         } else {
             ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_None);
+        }
+        if (autoStart_ && ImGui::GetFrameCount() >= 3 && !run_.running) {
+            autoStart_ = false;
+            startRun(); // --autorun: kick off the analysis once the UI is up
         }
 
         drawMenuBar();
@@ -991,9 +998,9 @@ void App::drawLogPanel() {
 
 } // namespace
 
-int RunApexFaceGui(const wchar_t* initialFolderWide) {
+int RunApexFaceGui(const wchar_t* initialFolderWide, bool autoStart) {
     App app;
-    return app.run(initialFolderWide);
+    return app.run(initialFolderWide, autoStart);
 }
 
 } // namespace gui
