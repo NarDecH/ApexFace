@@ -32,13 +32,16 @@ critically sharp. ApexFace automates the triage:
 | Area | Details |
 |---|---|
 | Detection | Google **YuNet** (2023mar, 232 KB ONNX) via `cv::FaceDetectorYN`; auto **CUDA → CPU** fallback; boxes mapped back to full resolution; EXIF orientation handled correctly for portrait/landscape mixes |
-| Sharpness score | Weighted multi-metric score (0–100) with small-face attenuation; ratings **A+ / A / B / C / D**; no-face photos *and* faces missing components (occluded eye/mouth, profile, cropped by frame) are graded D |
+| Sharpness score | Weighted multi-metric score (0–100), eye/mouth regions weighted extra via landmarks; small-face attenuation; ratings **A+ / A / B / C / D**; no-face photos *and* faces missing components (occluded eye/mouth, profile, cropped by frame) are graded D |
+| Burst grouping | Near-duplicate shots (64-bit dHash, ≤10 bits) are grouped and the ★ best shot of each group is marked in the report — one keeper per burst |
+| Per-run percentile | Every scored image reports "top X% of this run" |
 | Move rejects | Optionally move grade-D / no-face originals into `_apexface_rejects/` after the run (GUI checkbox or `--move-d`), keeping relative paths — every move is logged and listed in the report |
 | GUI | Dear ImGui docking UI: folder picker (native dialog), live progress, results table, preview panel with per-face metrics, log viewer, EN/ไทย toggle |
 | CLI | `apexface-cli <folder> [options]` for batch/scripted use, `--dump-metrics` for calibration |
 | Report | `index.html` summary + paginated card pages + `data.csv` + `data.json` + annotated full-res copies + thumbnails — or turn the whole report off ("Generate HTML report" checkbox / `--no-report`) for a pure scoring pass |
 | Logging | Session `.log` (TRACE..ERROR, ms timestamps, categories) **and** structured `.events.jsonl` for machine analysis; log copied into every report |
-| Robustness | Unicode-safe file IO with EXIF orientation handling; skips its own output folders; per-file error isolation |
+| Robustness | Unicode-safe file IO with EXIF orientation handling; skips its own output folders; per-file error isolation; result cache skips unchanged files |
+| Quality gates | ctest unit tests; GitHub Actions CI on windows-latest (OpenCV via vcpkg) |
 
 ## Report preview
 

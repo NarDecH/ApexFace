@@ -53,6 +53,13 @@ resFactor = faceW ≥ 96 px ? 1.0 : 0.55 + 0.45·(faceW/96)
 `resFactor` encodes a physical truth: a face that is only ~40 px wide cannot carry fine
 detail regardless of optics. Constants (v1.0.0): `kLap = 350`, `kTen = 1200`, `fftRef = 0.0018`.
 
+**Region weighting (since 1.1.0).** Viewers judge portrait sharpness mostly by the eyes and
+mouth, so the Laplacian/Tenengrad values entering the formula are blended with metrics of
+small patches centered on the YuNet landmarks: whole crop 75%, eyes 15%, mouth 10%
+(renormalized when a patch is unusable). The soft-saturation mapping and constants are
+unchanged, so the calibrated scale holds; measured effect on the 400-photo sample shifts the
+median score by only a few points while correctly demoting faces whose eyes went soft.
+
 **Ratings.** `A+ ≥ 85 · A ≥ 72 · B ≥ 58 · C ≥ 42 · D < 42` — band colors are used
 consistently in the GUI, annotations and report.
 
@@ -104,6 +111,8 @@ GTX 1060 6GB, CUDA 12.9 build of OpenCV, 8 workers, 24 MP (3936×2624) JPEG inpu
 | Full race folder — thumbnails only | 9,416 | — | 399 s | ~23.6 img/s |
 | Full race folder — full export (annotated copies + CSV/JSON) | 9,308 | 19,745 | 558 s | ~16.7 img/s |
 | Race folder sample (400 photos) | 400 | 708 | 15.4 s | ~26 img/s |
+| Race folder sample (400 photos, 1.1.0 with eye weighting + grouping) | 400 | 708 | 24.7 s | ~16 img/s |
+| Race folder sample (400 photos, 1.1.0, cached re-run) | 400 | 708 | 1.3 s | — |
 | Demo samples (5 photos) | 5 | 13 | 1.5 s | — |
 
 Both full-folder runs finished with **0 errors**; the first pass moved 108 grade-D/no-face

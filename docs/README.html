@@ -78,13 +78,15 @@ critically sharp. ApexFace automates the triage:</p>
 <table>
 <tr><th>Area</th><th>Details</th></tr>
 <tr><td>Detection</td><td>Google <b>YuNet</b> (2023mar, 232&nbsp;KB ONNX) via <code>cv::FaceDetectorYN</code>; auto <b>CUDA → CPU</b> fallback; boxes mapped back to full resolution; EXIF orientation handled correctly for portrait/landscape mixes</td></tr>
-<tr><td>Sharpness score</td><td>Weighted multi-metric score (0–100) with small-face attenuation; ratings <span class="badge" style="background:#10b981;color:#08130c">A+</span><span class="badge" style="background:#4ade80;color:#0a180e">A</span><span class="badge" style="background:#38bdf8;color:#08131b">B</span><span class="badge" style="background:#f59e0b;color:#1c1206">C</span><span class="badge" style="background:#ef4444;color:#1d0808">D</span>; no-face photos *and* faces missing components (occluded eye/mouth, profile, cropped by frame) are graded D</td></tr>
+<tr><td>Sharpness score</td><td>Weighted multi-metric score (0–100) with eye/mouth regions weighted extra via landmarks, small-face attenuation; ratings <span class="badge" style="background:#10b981;color:#08130c">A+</span><span class="badge" style="background:#4ade80;color:#0a180e">A</span><span class="badge" style="background:#38bdf8;color:#08131b">B</span><span class="badge" style="background:#f59e0b;color:#1c1206">C</span><span class="badge" style="background:#ef4444;color:#1d0808">D</span>; no-face photos and faces missing components (occluded eye/mouth, profile, cropped by frame) are graded D</td></tr>
+<tr><td>Burst grouping</td><td>Near-duplicate shots (64-bit dHash, â¤10 bits) are grouped and the â best shot of each group is marked in the report; per-run percentile ("top X%") on every scored image</td></tr>
 <tr><td>Move rejects</td><td>Optionally move grade-D / no-face originals into <code>_apexface_rejects/</code> after the run (GUI checkbox or <code>--move-d</code>), keeping relative paths — every move is logged and listed in the report</td></tr>
 <tr><td>GUI</td><td>Dear ImGui docking UI: native folder picker, live progress, results table, preview panel with per-face metrics, log viewer, EN/ไทย toggle</td></tr>
 <tr><td>CLI</td><td><code>apexface-cli &lt;folder&gt; [options]</code> for batch/scripted use, <code>--dump-metrics</code> for calibration</td></tr>
 <tr><td>Report</td><td><code>index.html</code> summary + paginated card pages + <code>data.csv</code> + <code>data.json</code> + annotated full-res copies + thumbnails — or turn the whole report off ("Generate HTML report" checkbox / <code>--no-report</code>) for a pure scoring pass</td></tr>
 <tr><td>Logging</td><td>Session <code>.log</code> (TRACE..ERROR, ms timestamps, categories) <b>and</b> structured <code>.events.jsonl</code>; log copied into every report</td></tr>
 <tr><td>Robustness</td><td>Unicode-safe file IO with EXIF orientation handling; skips its own output folders; per-file error isolation</td></tr>
+<tr><td>Quality gates</td><td>ctest unit tests; GitHub Actions CI on windows-latest (OpenCV via vcpkg)</td></tr>
 </table>
 
 <h2 id="report">Report preview</h2>

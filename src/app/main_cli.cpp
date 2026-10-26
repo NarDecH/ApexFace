@@ -46,6 +46,9 @@ void printUsage() {
         "  --no-json            skip data.json\n"
         "  --move-d             move grade-D / no-face originals to\n"
         "                       <folder>/_apexface_rejects after the run\n"
+        "  --restore-moved      move files back from <folder>/_apexface_rejects\n"
+        "                       (uses the move manifest) and exit\n"
+        "  --no-cache           ignore cached results, re-analyze everything\n"
         "  --max-images <n>     analyze only the first n images (testing)\n"
         "  --dump-metrics <f>   write per-face raw metrics CSV (calibration)\n"
         "  --quiet              less console output\n"
@@ -82,7 +85,7 @@ int main(int argc, char** argv) {
 
     std::string folderArg, outArg, backend = "auto", dumpMetrics;
     bool recursive = true, exportAnnotated = true, exportCsv = true, exportJson = true, quiet = false;
-    bool moveD = false, generateReport = true;
+    bool moveD = false, generateReport = true, useCache = true, restoreMoved = false;
     int minFace = 28, workers = 0, maxImages = 0;
 
     folderArg = argv[1];
@@ -101,6 +104,8 @@ int main(int argc, char** argv) {
         else if (a == "--no-csv") exportCsv = false;
         else if (a == "--no-json") exportJson = false;
         else if (a == "--move-d") moveD = true;
+        else if (a == "--restore-moved") restoreMoved = true;
+        else if (a == "--no-cache") useCache = false;
         else if (a == "--quiet") quiet = true;
         else {
             std::cerr << "unknown option: " << a << "\n";
@@ -123,6 +128,13 @@ int main(int argc, char** argv) {
     fs::path outDir = outArg.empty() ? folder / "_apexface_report" : platform::utf8path(outArg);
     fs::create_directories(outDir, ec);
 
+    if (restoreMoved) {
+        int n = Analyzer::restoreMoved(folder);
+        std::cout << "restored " << n << " file(s) from "
+                  << platform::utf8str(folder / "_apexface_rejects") << "\n";
+        return n > 0 ? 0 : 1;
+    }
+
     Logger::Config lc;
     lc.dir = outDir / "logs";
     lc.sessionTag = "cli";
@@ -142,6 +154,7 @@ int main(int argc, char** argv) {
     o.exportAnnotated = exportAnnotated;
     o.moveRejects = moveD;
     o.generateReport = generateReport;
+    o.useCache = useCache;
     o.modelPathUtf8 = platform::utf8str(model);
     o.maxImages = maxImages;
 

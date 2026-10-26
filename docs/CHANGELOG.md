@@ -3,6 +3,32 @@
 All notable changes to ApexFace are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: SemVer.
 
+## [1.1.0] — 2026-10-27
+
+### Added
+- **Eye/mouth-weighted sharpness** — the whole-crop metrics are blended with eye-patch and
+  mouth-patch metrics (25% weight, landmarks from YuNet): viewers judge portrait sharpness
+  mostly by eyes and mouth, so a face with a soft face but crisp eyes now scores
+  appropriately. Same calibrated 0–100 mapping.
+- **Burst / near-duplicate grouping** — every image gets a 64-bit dHash; images within 10 bits
+  of a group's anchor are grouped (greedy anchoring prevents runaway chains). The report shows
+  ★ the best shot of each group, `data.csv`/`data.json` carry `group`, `group_best`,
+  `group_size`. On the 400-photo race sample: 30 groups covering 352 images.
+- **Per-run percentile** — every scored image reports "top X% of this run" (preview panel,
+  report cards, hero card, CSV/JSON `percentile`).
+- **Result cache** — unchanged files (same size + mtime + settings) are skipped on re-runs
+  into the same output folder; results are restored from `<outDir>/analysis_cache.tsv`.
+  Measured: 1.5 s → 0.65 s on a 5-photo folder, hours-scale savings on 9,000+ photo folders.
+  GUI checkbox "Reuse cached results" / CLI `--no-cache`.
+- **Drag & drop** — drop a folder onto the GUI window to select it as the source.
+- **Recent folders** — the last five source folders are remembered (dropdown under the path).
+- **Restore moved rejects** — every reject move is written to
+  `<folder>/_apexface_rejects/_apexface_moved.tsv`; a GUI button (appears when a manifest
+  exists) or `--restore-moved` moves everything back. Round-trip verified.
+- **Unit tests + CI** — `tests/test_core.cpp` (rating boundaries, orientation, sharpness
+  ordering, landmark completeness, EXIF) runs via ctest; GitHub Actions builds on
+  windows-latest with OpenCV from vcpkg (manifest mode) and runs the tests on every push.
+
 ## [1.0.5] — 2026-10-27
 
 ### Added

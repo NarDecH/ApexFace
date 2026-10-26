@@ -113,6 +113,10 @@ private:
     void startRun();
     void drainNewResults();
     void clearTextures();
+    void onFolderPicked(const std::string& utf8Folder);
+
+    // GLFW drop callback: accept the first dropped directory as source folder
+    static void DropCb(GLFWwindow* w, int count, const char** paths);
 
     bool pickFolder(std::string& outUtf8);
     Tex getTex(const std::string& rel);
@@ -133,6 +137,8 @@ private:
     std::chrono::steady_clock::time_point runStart_;
     std::string lastError_;
     std::string infoLine_;
+    std::string lastRestoreCheckFolder_;
+    bool hasMovedManifest_ = false;
 
     // incremental stats over ui_
     int okCount_ = 0, noFaceCount_ = 0, incompleteCount_ = 0, errCount_ = 0, faceCount_ = 0;
@@ -179,6 +185,8 @@ int App::run(const wchar_t* initialFolderWide) {
     }
     glfwMakeContextCurrent(window_);
     glfwSwapInterval(1);
+    glfwSetWindowUserPointer(window_, this);
+    glfwSetDropCallback(window_, &App::DropCb);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -276,7 +284,7 @@ void App::drawMenuBar() {
     if (ImGui::BeginMenu(tr_("File", "ไฟล์"))) {
         if (ImGui::MenuItem(tr_("Open Folder...", "เปิดโฟลเดอร์..."), "Ctrl+O")) {
             std::string picked;
-            if (pickFolder(picked)) st_.lastFolder = picked;
+            if (pickFolder(picked)) onFolderPicked(picked);
         }
         ImGui::Separator();
         if (ImGui::MenuItem(tr_("Exit", "ออก"), "Alt+F4")) glfwSetWindowShouldClose(window_, 1);
@@ -318,6 +326,25 @@ bool App::pickFolder(std::string& outUtf8) {
         return true;
     }
     return false;
+}
+
+void App::onFolderPicked(const std::string& utf8Folder) {
+    st_.lastFolder = utf8Folder;
+    st_.addRecentFolder(utf8Folder);
+    lastRestoreCheckFolder_.clear(); // re-check the rejects manifest for this folder
+    AF_INFO("gui", "source folder: " << utf8Folder);
+}
+
+void App::DropCb(GLFWwindow* w, int count, const char** paths) {
+    auto* self = static_cast<App*>(glfwGetWindowUserPointer(w));
+    if (!self) return;
+    for (int i = 0; i < count; ++i) {
+        std::error_code ec;
+        if (fs::is_directory(fs::path(paths[i]), ec)) {
+            self->onFolderPicked(paths[i]);
+            break; // only the first dropped directory is used
+        }
+    }
 }
 
 void App::clearTextures() {
@@ -384,6 +411,7 @@ void App::startRun() {
     o.exportAnnotated = st_.exportAnnotated;
     o.moveRejects = st_.moveRejects;
     o.generateReport = st_.generateReport;
+    o.useCache = st_.useCache;
     o.modelPathUtf8 = platform::utf8str(model);
 
     {
@@ -489,7 +517,7 @@ void App::drawControls() {
     section(tr_("Source", "แหล่งรูป"));
     if (ImGui::Button(tr_("Browse Folder...", "เลือกโฟลเดอร์..."), {-1, 0})) {
         std::string picked;
-        if (pickFolder(picked)) st_.lastFolder = picked;
+        if (pickFolder(picked)) onFolderPicked(picked);
     }
     ImGui::PushStyleColor(ImGuiCol_FrameBg, rgb(12, 16, 22));
     ImGui::BeginChild("srcpath", {0, ImGui::GetTextLineHeight() * 2.2f + 8}, ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
@@ -497,6 +525,13 @@ void App::drawControls() {
                                                     : st_.lastFolder.c_str());
     ImGui::EndChild();
     ImGui::PopStyleColor();
+    if (!st_.recentFolders.empty()) {
+        if (ImGui::BeginCombo("##recent", tr_("Recent folders...", "โฟลเดอร์ล่าสุด..."))) {
+            for (const auto& f : st_.recentFolders)
+                if (ImGui::Selectable(f.c_str(), f == st_.lastFolder)) onFolderPicked(f);
+            ImGui::EndCombo();
+        }
+    }
     ImGui::Checkbox(tr_("Include subfolders", "รวมโฟลเดอร์ย่อย"), &st_.recursive);
 
     section(tr_("Detection", "การตรวจจับ"));
@@ -548,6 +583,45 @@ void App::drawControls() {
                               "after the run finishes. Originals are moved, not deleted.",
                               "ย้ายไฟล์รูปต้นฉบับไปที่ <โฟลเดอร์ต้นทาง>\\_apexface_rejects "
                               "หลังการวิเคราะห์จบ (ย้าย ไม่ใช่ลบ)"));
+    }
+    ImGui::Checkbox(tr_("Reuse cached results", "ใช้ผลที่วิเคราะห์ไว้แล้ว (cache)"), &st_.useCache);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%s",
+                          tr_("Skips files whose size and modification time are unchanged since "
+                              "the last run into the same output folder. Turn off to force a full "
+                              "re-analysis.",
+                              "ข้ามไฟล์ที่ขนาดและวันแก้ไขไม่เปลี่ยนจากรันล่าสุดในโฟลเดอร์ผลลัพธ์เดียวกัน "
+                              "ปิดเพื่อบังคับวิเคราะห์ใหม่ทั้งหมด"));
+    }
+    // restore moved rejects when a manifest exists for this source folder
+    if (lastRestoreCheckFolder_ != st_.lastFolder) {
+        lastRestoreCheckFolder_ = st_.lastFolder;
+        std::error_code ec;
+        hasMovedManifest_ =
+            !st_.lastFolder.empty() &&
+            fs::exists(platform::utf8path(st_.lastFolder) / "_apexface_rejects" / "_apexface_moved.tsv", ec);
+    }
+    if (hasMovedManifest_) {
+        ImGui::PushStyleColor(ImGuiCol_Button, rgb(245, 158, 11));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rgb(251, 191, 36));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, rgb(245, 158, 11));
+        if (ImGui::Button(tr_("Restore moved files...", "คืนไฟล์ที่ถูกย้ายไป rejects..."), {-1, 0})) {
+            int n = Analyzer::restoreMoved(platform::utf8path(st_.lastFolder));
+            infoLine_ = n > 0 ? (tr_("Restored ", "คืนแล้ว ") + std::to_string(n) + " " +
+                                 tr_("file(s) from _apexface_rejects", "ไฟล์จาก _apexface_rejects"))
+                              : tr_("Nothing to restore.", "ไม่มีไฟล์ให้คืน");
+            AF_INFO("gui", infoLine_);
+            std::error_code ec;
+            hasMovedManifest_ = fs::exists(platform::utf8path(st_.lastFolder) / "_apexface_rejects" /
+                                               "_apexface_moved.tsv",
+                                           ec);
+        }
+        ImGui::PopStyleColor(3);
+        if (!infoLine_.empty()) {
+            ImGui::PushStyleColor(ImGuiCol_Text, rgb(245, 158, 11));
+            ImGui::TextWrapped("%s", infoLine_.c_str());
+            ImGui::PopStyleColor();
+        }
     }
 
     section(tr_("Run", "การทำงาน"));
@@ -834,6 +908,15 @@ void App::drawPreview() {
         ImGui::TextColored(ratingColorVec(bf.score), "%s %.1f  (%s)", tr_("Sharpest:", "คมชัดสุด:"),
                            bf.score, sharp::ratingLabel(bf.score));
         ImGui::PopFont();
+    }
+    if (r.percentile >= 0) {
+        ImGui::TextDisabled("Top %s%% of this run", f1s(100.0 - r.percentile).c_str());
+    }
+    if (r.groupSize > 1) {
+        ImGui::TextDisabled(
+            "%s", (r.groupBest ? "\xe2\x98\x85 best of " + std::to_string(r.groupSize) + " similar shots"
+                               : "part of a " + std::to_string(r.groupSize) + "-shot group")
+                      .c_str());
     }
     ImGui::Separator();
     for (size_t i = 0; i < r.faces.size(); ++i) {

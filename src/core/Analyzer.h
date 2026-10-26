@@ -4,10 +4,12 @@
 #include "Sharpness.h"
 
 #include <atomic>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -39,6 +41,7 @@ struct AnalyzeOptions {
     int maxImages = 0;         // 0 = no limit (useful for tests/demos)
     bool moveRejects = false;  // move grade-D / no-face originals to <folder>/_apexface_rejects
     bool generateReport = true; // false = scoring pass only: no thumbs/annotated files
+    bool useCache = true;      // reuse results of unchanged files (cached in <outDir>)
 };
 
 struct FaceResult {
@@ -68,6 +71,11 @@ struct ImageResult {
     std::string annotatedRel;  // empty if not exported
     std::string movedTo;       // relative path inside the source folder after a reject move
     std::string backend;
+    std::uint64_t dHash = 0;   // 64-bit difference hash (0 = unavailable)
+    int group = -1;            // burst/near-duplicate group id (1..N, -1 = unique)
+    bool groupBest = false;    // this image is the best of its group
+    int groupSize = 0;         // number of images in the group (0 = unique)
+    double percentile = -1;    // bestScore percentile within the run (ok status only, -1 = n/a)
 };
 
 struct RunSummary {
@@ -80,6 +88,7 @@ struct RunSummary {
     int workers = 0;
     bool canceled = false;
     int movedCount = 0;                 // files moved to _apexface_rejects (if enabled)
+    int burstGroups = 0;                // near-duplicate groups with 2+ images
     std::vector<ImageResult> results;   // final state of every result (post move)
 };
 
@@ -93,6 +102,10 @@ public:
                    std::atomic<bool>& cancel, CurrentFileReporter& currentFile);
 
     static std::vector<fs::path> scanFolder(const AnalyzeOptions& opt);
+
+    // Move files listed in <folder>/_apexface_rejects/_apexface_moved.tsv back to
+    // their original locations. Returns the number of restored files.
+    static int restoreMoved(const fs::path& folder);
 
 private:
     ImageResult processOne(const fs::path& file, int idx, const AnalyzeOptions& opt,

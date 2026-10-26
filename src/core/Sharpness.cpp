@@ -80,6 +80,78 @@ Metrics computeMetrics(const cv::Mat& bgr, const cv::Rect& faceBox, int marginPc
 
 static double soft(double v, double k) { return 100.0 * v / (v + k); }
 
+// Laplacian variance + Tenengrad of one small patch (same prefilter pipeline
+// as the face crop), for landmark-region weighting.
+static bool patchLapTen(const cv::Mat& bgr, cv::Rect roi, double& lapVar, double& ten) {
+    roi &= cv::Rect(0, 0, bgr.cols, bgr.rows);
+    if (roi.width < 8 || roi.height < 8) return false;
+    cv::Mat gray;
+    cv::cvtColor(bgr(roi), gray, cv::COLOR_BGR2GRAY);
+    cv::GaussianBlur(gray, gray, {3, 3}, 0.8);
+    cv::Mat lap;
+    cv::Laplacian(gray, lap, CV_32F, 3);
+    cv::Scalar mean, sd;
+    cv::meanStdDev(lap, mean, sd);
+    lapVar = (double)sd.val[0] * sd.val[0];
+    cv::Mat gx, gy;
+    cv::Sobel(gray, gx, CV_32F, 1, 0, 3);
+    cv::Sobel(gray, gy, CV_32F, 0, 1, 3);
+    cv::meanStdDev(gx.mul(gx) + gy.mul(gy), mean, sd);
+    ten = (double)mean.val[0];
+    return true;
+}
+
+static cv::Rect patchRect(const cv::Point2f& c, float w, float h, const cv::Mat& bgr) {
+    return {cvRound(c.x - w / 2), cvRound(c.y - h / 2), cvRound(w), cvRound(h)};
+}
+
+Score scoreFace(const cv::Mat& bgr, const cv::Rect& faceBox, const cv::Point2f* lm,
+                const Config* cfgOverride) {
+    const Config& c = cfgOverride ? *cfgOverride : g_cfg;
+    Score s = scoreFace(bgr, faceBox, cfgOverride);
+    if (!lm || bgr.empty()) return s;
+
+    // eye patches (each eye) and mouth patch (between the mouth corners)
+    const float pw = 0.42f * faceBox.width, ph = 0.30f * faceBox.height;
+    double eLap = 0, eTen = 0, mLap = 0, mTen = 0;
+    int eN = 0, mN = 0;
+    for (int k = 0; k < 2; ++k) {
+        double lv, tn;
+        if (patchLapTen(bgr, patchRect(lm[k], pw, ph, bgr), lv, tn)) {
+            eLap += lv;
+            eTen += tn;
+            ++eN;
+        }
+    }
+    cv::Point2f mc((lm[3].x + lm[4].x) / 2, (lm[3].y + lm[4].y) / 2);
+    double lv, tn;
+    if (patchLapTen(bgr, patchRect(mc, 0.55f * faceBox.width, 0.30f * faceBox.height, bgr), lv, tn)) {
+        mLap = lv;
+        mTen = tn;
+        ++mN;
+    }
+    if (eN == 0 && mN == 0) return s; // no usable patches -> whole-crop score
+
+    // blend: whole crop 0.75, eyes 0.15, mouth 0.10 (renormalized for missing parts)
+    double wBase = 0.75, wEyes = eN ? 0.15 : 0.0, wMouth = mN ? 0.10 : 0.0;
+    const double sum = wBase + wEyes + wMouth;
+    wBase /= sum;
+    wEyes /= sum;
+    wMouth /= sum;
+    const double lapW = wBase * s.raw.lapVar + wEyes * (eN ? eLap / eN : 0.0) +
+                        wMouth * (mN ? mLap / mN : 0.0);
+    const double tenW = wBase * s.raw.tenengrad + wEyes * (eN ? eTen / eN : 0.0) +
+                        wMouth * (mN ? mTen / mN : 0.0);
+
+    s.lapScore = soft(lapW, c.kLap);
+    s.tenScore = soft(tenW, c.kTen);
+    const double v = c.wLap * s.lapScore + c.wTen * s.tenScore + c.wFft * s.fftScore;
+    s.final0to100 = std::clamp(v * s.resFactor, 0.0, 100.0);
+    s.raw.lapVar = lapW;    // the blended values are what the score used
+    s.raw.tenengrad = tenW;
+    return s;
+}
+
 Score scoreFace(const cv::Mat& bgr, const cv::Rect& faceBox, const Config* cfgOverride) {
     const Config& c = cfgOverride ? *cfgOverride : g_cfg;
     Score s;

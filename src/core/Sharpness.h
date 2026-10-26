@@ -34,7 +34,15 @@ const Config& config();
 
 Metrics computeMetrics(const cv::Mat& bgrFullRes, const cv::Rect& faceBox, int marginPct = 50);
 
+// Face-only scoring (whole-crop metrics).
 Score scoreFace(const cv::Mat& bgrFullRes, const cv::Rect& faceBox, const Config* cfgOverride = nullptr);
+
+// Landmark-aware scoring: blends the whole-crop metrics with eye-patch and
+// mouth-patch metrics (viewers judge sharpness mostly by eyes and mouth).
+// Pass lm = nullptr to score the whole crop only. The soft-saturation mapping
+// and constants are unchanged, so the calibrated 0-100 scale is preserved.
+Score scoreFace(const cv::Mat& bgrFullRes, const cv::Rect& faceBox, const cv::Point2f* lm /*5*/,
+                const Config* cfgOverride = nullptr);
 
 // Rating scale: A+ >= 85, A >= 72, B >= 58, C >= 42, D otherwise.
 char ratingLetter(double score);       // 'A'/'B'/'C'/'D' ('+' from plusLetter)

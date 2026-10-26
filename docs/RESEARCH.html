@@ -92,6 +92,7 @@ resFactor = faceW ≥ 96 px ? 1.0 : 0.55 + 0.45·(faceW/96)</code></pre>
 <p><code>resFactor</code> encodes a physical truth: a face that is only ~40&nbsp;px wide cannot carry
 fine detail regardless of optics. Constants (v1.0.0): <code>kLap = 350</code>,
 <code>kTen = 1200</code>, <code>fftRef = 0.0018</code>.</p>
+<p><b>Region weighting (since 1.1.0).</b> Viewers judge portrait sharpness mostly by the eyes and mouth, so the Laplacian/Tenengrad values entering the formula are blended with metrics of small patches centered on the YuNet landmarks: whole crop 75%, eyes 15%, mouth 10% (renormalized when a patch is unusable). The soft-saturation mapping and constants are unchanged, so the calibrated scale holds.</p>
 <p><b>Ratings.</b> <b>A+ ≥ 85 · A ≥ 72 · B ≥ 58 · C ≥ 42 · D &lt; 42</b> — band colors are used
 consistently in the GUI, annotations and report.</p>
 
@@ -137,6 +138,8 @@ looked like a keeper).</div>
 <tr><td>Full race folder — thumbnails only</td><td>9,416</td><td>—</td><td>399 s</td><td>~23.6 img/s</td></tr>
 <tr><td>Full race folder — full export (annotated copies + CSV/JSON)</td><td>9,308</td><td>19,745</td><td>558 s</td><td>~16.7 img/s</td></tr>
 <tr><td>Race folder sample (400 photos)</td><td>400</td><td>708</td><td>15.4 s</td><td>~26 img/s</td></tr>
+<tr><td>Race sample (400, 1.1.0: eye weighting + grouping)</td><td>400</td><td>708</td><td>24.7 s</td><td>~16 img/s</td></tr>
+<tr><td>Race sample (400, 1.1.0, cached re-run)</td><td>400</td><td>708</td><td>1.3 s</td><td>—</td></tr>
 <tr><td>Demo samples (5 photos)</td><td>5</td><td>13</td><td>1.5 s</td><td>—</td></tr>
 </table>
 <p>Both full-folder runs finished with <b>0 errors</b>; the first pass moved 108 grade-D/no-face

@@ -15,6 +15,10 @@ bool Settings::load(const fs::path& file) {
             dst = f[k].empty() ? def : ((int)f[k] != 0);
         };
         rs("lastFolder", lastFolder, "");
+        if (!f["recentFolders"].empty()) {
+            recentFolders.clear();
+            for (auto n : f["recentFolders"]) recentFolders.emplace_back((std::string)n);
+        }
         rs("outDirOverride", outDirOverride, "");
         rb("recursive", recursive, true);
         ri("minFacePx", minFacePx, 28);
@@ -25,6 +29,7 @@ bool Settings::load(const fs::path& file) {
         rb("exportJson", exportJson, true);
         rb("generateReport", generateReport, true);
         rb("moveRejects", moveRejects, false);
+        rb("useCache", useCache, true);
         ri("reportCardsPerPage", reportCardsPerPage, 200);
         rs("logLevel", logLevel, "trace");
         rs("lang", lang, "en");
@@ -41,6 +46,9 @@ bool Settings::save(const fs::path& file) const {
         cv::FileStorage f(file.string(), cv::FileStorage::WRITE);
         if (!f.isOpened()) return false;
         f << "lastFolder" << lastFolder;
+        f << "recentFolders" << "[";
+        for (const auto& s : recentFolders) f << s;
+        f << "]";
         f << "outDirOverride" << outDirOverride;
         f << "recursive" << recursive;
         f << "minFacePx" << minFacePx;
@@ -51,6 +59,7 @@ bool Settings::save(const fs::path& file) const {
         f << "exportJson" << exportJson;
         f << "generateReport" << generateReport;
         f << "moveRejects" << moveRejects;
+        f << "useCache" << useCache;
         f << "reportCardsPerPage" << reportCardsPerPage;
         f << "logLevel" << logLevel;
         f << "lang" << lang;
@@ -62,4 +71,16 @@ bool Settings::save(const fs::path& file) const {
 
 fs::path Settings::defaultPath() {
     return platform::exeDir() / "config" / "settings.yml";
+}
+
+void Settings::addRecentFolder(const std::string& utf8Folder) {
+    if (utf8Folder.empty()) return;
+    for (size_t i = 0; i < recentFolders.size(); ++i) {
+        if (recentFolders[i] == utf8Folder) {
+            recentFolders.erase(recentFolders.begin() + i);
+            break;
+        }
+    }
+    recentFolders.insert(recentFolders.begin(), utf8Folder);
+    if (recentFolders.size() > 5) recentFolders.resize(5);
 }

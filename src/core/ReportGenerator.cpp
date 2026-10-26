@@ -172,7 +172,11 @@ std::string cardHtml(const ImageResult& r) {
     o << "<div class=\"name\" title=\"" << hesc(r.relPath) << "\">" << hesc(r.name) << "</div>";
     if (r.status == "ok") {
         o << "<div class=\"sub\">" << r.faces.size() << (r.faces.size() == 1 ? " face" : " faces")
-          << " &middot; " << r.width << "&times;" << r.height << " &middot; " << (int)r.totalMs << " ms</div>";
+          << " &middot; " << r.width << "&times;" << r.height << " &middot; " << (int)r.totalMs << " ms";
+        if (r.groupBest) o << " &middot; &#9733; best of " << r.groupSize;
+        else if (r.groupSize > 1) o << " &middot; " << r.groupSize << "-shot group";
+        if (r.percentile >= 0) o << " &middot; top " << f1(100.0 - r.percentile) << "%";
+        o << "</div>";
     } else if (r.status == "no_face") {
         o << "<div class=\"sub\">no face (grade D) &middot; " << r.width << "&times;" << r.height << "</div>";
     } else if (r.status == "incomplete") {
@@ -253,6 +257,9 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
             o << "<span class=\"chip\" style=\"border-color:var(--amber)\">Moved <b>" << sum.movedCount
               << "</b> grade-D file(s) to <b>_apexface_rejects</b></span>";
         }
+        if (sum.burstGroups > 0) {
+            o << "<span class=\"chip\">Burst groups <b>" << sum.burstGroups << "</b></span>";
+        }
         o << "<span class=\"chip\">ApexFace <b>v" << APEXFACE_VERSION << "</b></span>"
           << "</div></div></header><div class=\"wrap\">";
 
@@ -271,10 +278,15 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
             o << "<h2>Sharpest face in the folder</h2><div class=\"heroimg\">";
             o << "<a href=\"" << hesc(best->annotatedRel.empty() ? best->thumbRel : best->annotatedRel)
               << "\" target=\"_blank\" rel=\"noopener\"><img src=\"" << hesc(best->thumbRel) << "\" alt=\"best\"></a>";
+            const std::string heroPct = best->percentile >= 0
+                                            ? "<p class=\"sub\" style=\"margin-top:8px\">Better than " +
+                                                  f1(best->percentile) + "% of this run</p>"
+                                            : "";
             o << "<div class=\"info\"><div class=\"scorebig\" style=\"color:" << sharp::ratingHex(best->bestScore)
               << "\">" << f1(best->bestScore) << "</div>"
               << "<span class=\"rating " << badgeClass(best->bestScore) << "\" style=\"background:"
               << sharp::ratingHex(best->bestScore) << "\">" << sharp::ratingLabel(best->bestScore) << "</span>"
+              << heroPct
               << "<p style=\"margin-top:14px;font-size:15px\"><b>" << hesc(best->relPath) << "</b></p>"
               << "<p class=\"sub\">" << best->faces.size() << " face(s) detected &middot; " << best->width
               << "&times;" << best->height << " px</p>"
@@ -396,7 +408,8 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
         std::ostringstream o;
         o << "idx,rel_path,status,width,height,faces,best_face_idx,best_score,rating,"
              "box_x,box_y,box_w,box_h,lap_var,tenengrad,fft_hf,contrast_rms,res_factor,"
-             "conf,load_ms,detect_ms,analyze_ms,total_ms,backend,thumb,annotated,moved_to\n";
+             "conf,load_ms,detect_ms,analyze_ms,total_ms,backend,thumb,annotated,moved_to,"
+             "group,group_best,group_size,percentile\n";
         auto csvEmpty = [&](int k) { for (int i = 0; i < k; ++i) o << ','; };
         for (const auto& r : results) {
             const FaceResult* bf = r.bestIdx >= 0 ? &r.faces[r.bestIdx] : nullptr;
@@ -417,7 +430,9 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
             }
             o << "," << f1(r.loadMs) << "," << f1(r.detectMs) << "," << f1(r.analyzeMs) << ","
               << f1(r.totalMs) << "," << r.backend << ",\"" << r.thumbRel << "\",\"" << r.annotatedRel
-              << "\",\"" << r.movedTo << "\"\n";
+              << "\",\"" << r.movedTo << "\"," << r.group << "," << (r.groupBest ? 1 : 0) << ","
+              << r.groupSize << "," << (r.percentile >= 0 ? f2(r.percentile) : std::string(""))
+              << "\n";
         }
         if (!writeFile(opt.outDir / "data.csv", o.str(), errorOut)) return false;
     }
@@ -430,6 +445,7 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
           << "\",\"generated\":" << jstr(dateStr) << ",\"source\":" << jstr(opt.sourceFolderUtf8)
           << ",\"backend\":" << jstr(sum.backend) << ",\"workers\":" << sum.workers
           << ",\"elapsed_sec\":" << jnum(opt.elapsedSec) << ",\"canceled\":" << (sum.canceled ? "true" : "false")
+          << ",\"burst_groups\":" << sum.burstGroups
           << ",\"counts\":{\"total\":" << sum.total << ",\"ok\":" << sum.ok << ",\"no_face\":" << sum.noFace
           << ",\"incomplete\":" << sum.incomplete
           << ",\"errors\":" << sum.errors << ",\"faces\":" << sum.totalFaces << "}},\"images\":[";
@@ -459,6 +475,9 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
             o << ",\"load_ms\":" << jnum(r.loadMs) << ",\"detect_ms\":" << jnum(r.detectMs)
               << ",\"total_ms\":" << jnum(r.totalMs) << ",\"thumb\":" << jstr(r.thumbRel)
               << ",\"annotated\":" << jstr(r.annotatedRel) << ",\"moved_to\":" << jstr(r.movedTo)
+              << ",\"group\":" << r.group << ",\"group_best\":" << (r.groupBest ? "true" : "false")
+              << ",\"group_size\":" << r.groupSize << ",\"percentile\":"
+              << (r.percentile >= 0 ? jnum(r.percentile) : std::string("null"))
               << ",\"rating\":" << (r.bestIdx >= 0 ? jstr(sharp::ratingLabel(r.bestScore))
                                    : (r.status == "no_face" || r.status == "incomplete") ? jstr("D")
                                                                                         : std::string("null"))

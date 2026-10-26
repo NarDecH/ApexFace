@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ApexFace VERSION 1.0.5 LANGUAGES C CXX)
+project(ApexFace VERSION 1.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,7 +58,7 @@ add_library(apexface_core STATIC
 )
 target_include_directories(apexface_core PUBLIC src)
 target_link_libraries(apexface_core PUBLIC ${OpenCV_LIBS})
-target_compile_definitions(apexface_core PUBLIC APEXFACE_VERSION="1.0.5")
+target_compile_definitions(apexface_core PUBLIC APEXFACE_VERSION="1.1.0")
 
 # ---------------------------------------------------------------------------
 # GUI application
@@ -82,3 +82,13 @@ target_link_libraries(ApexFace PRIVATE apexface_core imgui nfd opengl32)
 # ---------------------------------------------------------------------------
 add_executable(apexface-cli src/app/main_cli.cpp)
 target_link_libraries(apexface-cli PRIVATE apexface_core)
+
+# ---------------------------------------------------------------------------
+# Unit tests (ctest)
+# ---------------------------------------------------------------------------
+enable_testing()
+add_executable(apexface_tests tests/test_core.cpp)
+target_link_libraries(apexface_tests PRIVATE apexface_core)
+target_compile_definitions(apexface_tests
+    PRIVATE SAMPLES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/samples")
+add_test(NAME core_tests COMMAND apexface_tests)
