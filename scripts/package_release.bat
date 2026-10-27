@@ -26,6 +26,9 @@ for %%D in (msvcp140.dll vcruntime140.dll vcruntime140_1.dll concrt140.dll) do (
 xcopy /e /i /y "models"  "%STG%\models"  >nul
 xcopy /e /i /y "fonts"   "%STG%\fonts"   >nul
 xcopy /e /i /y "samples" "%STG%\samples" >nul
+rem generated outputs from demo runs must not ship
+rmdir /s /q "%STG%\samples\_apexface_report" 2>nul
+rmdir /s /q "%STG%\samples\_apexface_rejects" 2>nul
 mkdir "%STG%\docs"
 copy /y "docs\*.html" "%STG%\docs\" >nul
 copy /y "docs\*.md"   "%STG%\docs\" >nul
