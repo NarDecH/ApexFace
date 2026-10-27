@@ -20,6 +20,7 @@ struct Settings {
     bool generateReport = true; // false = scoring pass only: no thumbs/annotated/HTML/CSV/JSON
     bool moveRejects = false;   // move grade-D / no-face files to <folder>/_apexface_rejects
     bool useCache = true;       // reuse results of unchanged files
+    int scoreMinPx = 0;         // score only faces at least this wide (0 = all detected faces)
     double gradeAPlus = 85;     // user-configurable grade boundaries (C < B < A < A+)
     double gradeA = 72;
     double gradeB = 58;

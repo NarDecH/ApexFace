@@ -148,7 +148,7 @@ std::string cardHtml(const ImageResult& r) {
     std::ostringstream o;
     o << "<div class=\"card" << (r.status == "error" ? " err" : "") << "\"";
     if (r.status == "no_face") o << " data-r=\"D\" data-nf=\"1\"";
-    else if (r.status == "incomplete") o << " data-r=\"D\"";
+    else if (r.status == "incomplete" || r.status == "too_small") o << " data-r=\"D\"";
     else if (!r.faces.empty()) o << " data-r=\"" << sharp::ratingLabel(r.bestScore) << "\"";
     else o << " data-r=\"N\"";
     o << ">";
@@ -161,7 +161,7 @@ std::string cardHtml(const ImageResult& r) {
         o << "<img loading=\"lazy\" src=\"" << hesc(r.thumbRel) << "\" alt=\"" << hesc(r.name) << "\">";
         if (!r.faces.empty()) {
             o << "<span class=\"badge " << badgeClass(r.bestScore) << "\">" << f1(r.bestScore) << "</span>";
-        } else if (r.status == "no_face" || r.status == "incomplete") {
+        } else if (r.status == "no_face" || r.status == "incomplete" || r.status == "too_small") {
             o << "<span class=\"badge bD\">D</span>";
         } else {
             o << "<span class=\"badge bN\">error</span>";
@@ -182,6 +182,9 @@ std::string cardHtml(const ImageResult& r) {
     } else if (r.status == "incomplete") {
         o << "<div class=\"sub\">face incomplete (grade D &middot; missing " << hesc(r.faces.empty() ? "" : r.faces[0].missing)
           << ") &middot; " << r.width << "&times;" << r.height << "</div>";
+    } else if (r.status == "too_small") {
+        o << "<div class=\"sub\">faces too small to score (grade D) &middot; " << r.width
+          << "&times;" << r.height << "</div>";
     } else {
         o << "<div class=\"sub\">error: " << hesc(r.error) << "</div>";
     }
@@ -230,12 +233,14 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
     std::sort(ranked.begin(), ranked.end(),
               [](const ImageResult* a, const ImageResult* b) { return a->bestScore > b->bestScore; });
 
-    // rating distribution: images with faces use their best score; no-face and
-    // incomplete-face images count as grade D (score 0); errors are excluded
+    // rating distribution: images with faces use their best score; no-face,
+    // incomplete and too-small images count as grade D (score 0); errors excluded
     int dist[5] = {0, 0, 0, 0, 0}; // A+, A, B, C, D
     for (const auto& r : results) {
         if (r.status == "error") continue;
-        double s = (r.status == "no_face" || r.status == "incomplete") ? 0.0 : r.bestScore;
+        double s = (r.status == "no_face" || r.status == "incomplete" || r.status == "too_small")
+                       ? 0.0
+                       : r.bestScore;
         dist[s >= 85 ? 0 : s >= 72 ? 1 : s >= 58 ? 2 : s >= 42 ? 3 : 4]++;
     }
     const char* distNames[5] = {"A+ (85-100)", "A (72-84)", "B (58-71)", "C (42-57)", "D (0-41)"};
@@ -268,6 +273,7 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
           << "<div class=\"stat\"><div class=\"v\" style=\"color:var(--emerald)\">" << sum.ok << "</div><div class=\"k\">With faces</div></div>"
           << "<div class=\"stat\"><div class=\"v\" style=\"color:var(--muted)\">" << sum.noFace << "</div><div class=\"k\">No face</div></div>"
           << "<div class=\"stat\"><div class=\"v\" style=\"color:" << (sum.incomplete ? "var(--amber)" : "var(--text)") << "\">" << sum.incomplete << "</div><div class=\"k\">Incomplete</div></div>"
+          << "<div class=\"stat\"><div class=\"v\" style=\"color:" << (sum.smallOnly ? "var(--muted)" : "var(--text)") << "\">" << sum.smallOnly << "</div><div class=\"k\">Too small</div></div>"
           << "<div class=\"stat\"><div class=\"v\" style=\"color:" << (sum.errors ? "var(--red)" : "var(--text)") << "\">" << sum.errors << "</div><div class=\"k\">Errors</div></div>"
           << "<div class=\"stat\"><div class=\"v\">" << sum.totalFaces << "</div><div class=\"k\">Faces found</div></div>"
           << "<div class=\"stat\"><div class=\"v\" style=\"color:var(--acc)\">" << (ranked.empty() ? "-" : f1(ranked.front()->bestScore)) << "</div><div class=\"k\">Best score</div></div>"
@@ -421,8 +427,8 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
                   << f2(bf->metrics.lapVar) << "," << f2(bf->metrics.tenengrad) << ","
                   << f4(bf->metrics.fftHF) << "," << f2(bf->metrics.contrastRMS) << ","
                   << f2(bf->resFactor) << "," << f2(bf->conf);
-            } else if (r.status == "no_face" || r.status == "incomplete") {
-                // no face / incomplete face counts as grade D with score 0
+            } else if (r.status == "no_face" || r.status == "incomplete" || r.status == "too_small") {
+                // no face / incomplete / too-small counts as grade D with score 0
                 o << "-1,0.0,D";
                 csvEmpty(10); // box, metrics, res_factor, conf
             } else {
@@ -447,7 +453,7 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
           << ",\"elapsed_sec\":" << jnum(opt.elapsedSec) << ",\"canceled\":" << (sum.canceled ? "true" : "false")
           << ",\"burst_groups\":" << sum.burstGroups
           << ",\"counts\":{\"total\":" << sum.total << ",\"ok\":" << sum.ok << ",\"no_face\":" << sum.noFace
-          << ",\"incomplete\":" << sum.incomplete
+          << ",\"incomplete\":" << sum.incomplete << ",\"too_small\":" << sum.smallOnly
           << ",\"errors\":" << sum.errors << ",\"faces\":" << sum.totalFaces << "}},\"images\":[";
         bool first = true;
         for (const auto& r : results) {
@@ -479,8 +485,10 @@ bool ReportGenerator::generate(const std::vector<ImageResult>& results, const Ru
               << ",\"group_size\":" << r.groupSize << ",\"percentile\":"
               << (r.percentile >= 0 ? jnum(r.percentile) : std::string("null"))
               << ",\"rating\":" << (r.bestIdx >= 0 ? jstr(sharp::ratingLabel(r.bestScore))
-                                   : (r.status == "no_face" || r.status == "incomplete") ? jstr("D")
-                                                                                        : std::string("null"))
+                                   : (r.status == "no_face" || r.status == "incomplete" ||
+                                      r.status == "too_small")
+                                         ? jstr("D")
+                                         : std::string("null"))
               << "}";
         }
         o << "]}";

@@ -141,7 +141,8 @@ private:
     bool hasMovedManifest_ = false;
 
     // incremental stats over ui_
-    int okCount_ = 0, noFaceCount_ = 0, incompleteCount_ = 0, errCount_ = 0, faceCount_ = 0;
+    int okCount_ = 0, noFaceCount_ = 0, incompleteCount_ = 0, smallOnlyCount_ = 0, errCount_ = 0,
+        faceCount_ = 0;
     double bestBest_ = 0;
     std::string bestFile_;
 
@@ -378,6 +379,7 @@ void App::drainNewResults() {
             }
         } else if (r.status == "no_face") ++noFaceCount_;
         else if (r.status == "incomplete") ++incompleteCount_;
+        else if (r.status == "too_small") ++smallOnlyCount_;
         else if (r.status == "error") ++errCount_;
     }
     consumed_ = run_.all.size();
@@ -434,7 +436,7 @@ void App::startRun() {
     selected_ = -1;
     order_.clear();
     orderDirty_ = false;
-    okCount_ = noFaceCount_ = incompleteCount_ = errCount_ = faceCount_ = 0;
+    okCount_ = noFaceCount_ = incompleteCount_ = smallOnlyCount_ = errCount_ = faceCount_ = 0;
     bestBest_ = 0;
     bestFile_.clear();
     clearTextures();
@@ -546,6 +548,19 @@ void App::drawControls() {
     int minFace = st_.minFacePx;
     if (ImGui::SliderInt(tr_("Min face (px)", "ใบหน้าต่ำสุด (px)"), &minFace, 16, 128, "%d px"))
         st_.minFacePx = minFace;
+    int scoreMin = st_.scoreMinPx;
+    if (ImGui::SliderInt(tr_("Score faces from (px)", "ให้คะแนนเฉพาะหน้าตั้งแต่ (px)"), &scoreMin, 0,
+                         512, scoreMin ? "%d px" : "0 = all"))
+        st_.scoreMinPx = scoreMin;
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "%s",
+            tr_("Faces narrower than this are detected and listed but their sharpness is not "
+                "computed (0 = score every detected face). Images whose faces are all too small "
+                "are graded D.",
+                "ใบหน้าที่เล็กกว่านี้จะถูกตรวจพบและแสดงรายการ แต่จะไม่คำนวณคะแนนความคมชัด "
+                "(0 = ให้คะแนนทุกใบหน้าที่ตรวจพบ) ถ้าทุกใบหน้าในรูปเล็กเกินเกณฑ์ รูปนั้นจะได้เกรด D"));
+    }
     const char* beItems[] = {"Auto", "CPU", "CUDA"};
     int be = st_.backend == "cuda" ? 2 : st_.backend == "cpu" ? 1 : 0;
     if (ImGui::Combo(tr_("Backend", "Backend"), &be, beItems, 3))
@@ -774,6 +789,8 @@ void App::drawResults() {
     statChip(tr_("images", "รูป"), std::to_string(ui_.size()), rgb(230, 234, 242));
     statChip(tr_("with faces", "มีใบหน้า"), std::to_string(okCount_), rgb(74, 222, 128));
     statChip(tr_("no face", "ไม่พบใบหน้า"), std::to_string(noFaceCount_), rgb(139, 149, 167));
+    statChip(tr_("too small", "เล็กเกิน"), std::to_string(smallOnlyCount_),
+             smallOnlyCount_ ? rgb(139, 149, 167) : rgb(230, 234, 242));
     statChip(tr_("incomplete", "ไม่ครบ"), std::to_string(incompleteCount_),
              incompleteCount_ ? rgb(245, 158, 11) : rgb(230, 234, 242));
     statChip(tr_("errors", "ผิดพลาด"), std::to_string(errCount_), errCount_ ? rgb(239, 68, 68) : rgb(230, 234, 242));
@@ -834,7 +851,8 @@ void App::drawResults() {
                 ImGui::TableNextColumn();
                 if (r.bestIdx >= 0) {
                     ImGui::TextColored(ratingColorVec(r.bestScore), "%.1f", r.bestScore);
-                } else if (r.status == "no_face" || r.status == "incomplete") {
+                } else if (r.status == "no_face" || r.status == "incomplete" ||
+                             r.status == "too_small") {
                     ImGui::TextColored(ratingColorVec(0.0), "0.0");
                 } else ImGui::TextUnformatted("-");
                 ImGui::TableNextColumn();
@@ -845,8 +863,9 @@ void App::drawResults() {
                     ImGui::PushStyleColor(ImGuiCol_Text, rgb(10, 14, 20));
                     ImGui::SmallButton(sharp::ratingLabel(r.bestScore));
                     ImGui::PopStyleColor(4);
-                } else if (r.status == "no_face" || r.status == "incomplete") {
-                    // no face / incomplete face -> grade D
+                } else if (r.status == "no_face" || r.status == "incomplete" ||
+                             r.status == "too_small") {
+                    // no face / incomplete / too-small face -> grade D
                     ImGui::PushStyleColor(ImGuiCol_Button, ratingColorVec(0.0));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ratingColorVec(0.0));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ratingColorVec(0.0));
@@ -965,6 +984,11 @@ void App::drawPreview() {
     for (size_t i = 0; i < r.faces.size(); ++i) {
         const FaceResult& f = r.faces[i];
         bool best = (int)i == r.bestIdx;
+        if (f.tooSmall) {
+            ImGui::TextDisabled("  %s %zu: %s", tr_("Face", "ใบหน้า"), i + 1,
+                                tr_("too small, not scored", "เล็กเกินเกณฑ์ ไม่ให้คะแนน"));
+            continue;
+        }
         ImGui::PushStyleColor(ImGuiCol_Text, ratingColorVec(f.score));
         ImGui::BulletText("%s %zu: %.1f", tr_("Face", "ใบหน้า"), i + 1, f.score);
         ImGui::PopStyleColor();

@@ -31,7 +31,7 @@ critically sharp. ApexFace automates the triage:
 
 | Area | Details |
 |---|---|
-| Detection | Google **YuNet** (2023mar, 232 KB ONNX) via `cv::FaceDetectorYN`; auto **CUDA → CPU** fallback; boxes mapped back to full resolution; EXIF orientation handled correctly for portrait/landscape mixes |
+| Detection | Google **YuNet** (2023mar, 232 KB ONNX) via `cv::FaceDetectorYN`; auto **CUDA → CPU** fallback; boxes mapped back to full resolution; EXIF orientation handled correctly for portrait/landscape mixes; separate "min face" (visibility) and "score faces from" (scoring) size thresholds |
 | Sharpness score | Weighted multi-metric score (0–100), eye/mouth regions weighted extra via landmarks; small-face attenuation; ratings **A+ / A / B / C / D**; no-face photos *and* faces missing components (occluded eye/mouth, profile, cropped by frame) are graded D |
 | Burst grouping | Near-duplicate shots (64-bit dHash, ≤10 bits) are grouped and the ★ best shot of each group is marked in the report — one keeper per burst |
 | Per-run percentile | Every scored image reports "top X% of this run" |

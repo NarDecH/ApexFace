@@ -31,10 +31,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 - `--autorun` — `ApexFace.exe <folder> --autorun` starts the analysis immediately on launch
   (demo and screen-capture friendly).
 
-## [1.0.6] â 2026-10-27
+## [1.0.7] — 2026-10-27
 
 ### Added
-- **Configurable grade thresholds** â the A+/A/B/C boundaries are user-settable: four sliders in the GUI (kept strictly increasing, with a reset button) or `--grades A+,A,B,C` on the CLI. Ratings in the GUI, report, CSV/JSON and the move-rejects decision all follow the configured thresholds; raw scores are unaffected so the result cache stays valid. Defaults remain 85/72/58/42.
+- **Scoring size threshold** — a new "Score faces from (px)" slider (GUI) and
+  `--score-from <px>` (CLI): faces narrower than this are still detected and listed, but
+  their sharpness is not computed (0 = score every detected face, the previous behavior).
+  Images whose faces are all below the threshold are graded D ("too small"), included in
+  move-rejects, and counted in their own report/GUI stat. The threshold is part of the
+  result cache key, so changing it correctly triggers re-analysis.
+
+## [1.0.6] — 2026-10-27
+
+### Added
+- **Configurable grade thresholds** — the A+/A/B/C boundaries are user-settable: four sliders in the GUI (kept strictly increasing, with a reset button) or `--grades A+,A,B,C` on the CLI. Ratings in the GUI, report, CSV/JSON and the move-rejects decision all follow the configured thresholds; raw scores are unaffected so the result cache stays valid. Defaults remain 85/72/58/42.
 
 ## [1.0.5] — 2026-10-27
 

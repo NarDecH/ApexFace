@@ -1,6 +1,6 @@
 {
   "name": "apexface",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Find the sharpest face in every photo of a folder",
   "dependencies": [ "opencv4" ]
 }

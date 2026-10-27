@@ -79,7 +79,9 @@ void drawResults(cv::Mat& img, const ImageResult& r, bool watermark) {
         bool best = (int)i == r.bestIdx;
         cv::Scalar color;
         std::string label;
-        if (f.incomplete) {
+        if (f.tooSmall) {
+            color = cv::Scalar(160, 160, 160); // informational: below scoring threshold
+        } else if (f.incomplete) {
             color = {11, 158, 245}; // amber: missing components -> grade D
             label = "D";
         } else {
@@ -88,7 +90,9 @@ void drawResults(cv::Mat& img, const ImageResult& r, bool watermark) {
                      << (best ? " #1" : ""))
                         .str();
         }
-        cv::rectangle(img, f.box, color, best ? th + 2 : th, cv::LINE_AA);
+        cv::rectangle(img, f.box, color, best ? th + 2 : (f.tooSmall ? std::max(1, th - 1) : th),
+                      cv::LINE_AA);
+        if (label.empty()) continue;
         int base = 0;
         cv::Size ts = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, fs, th + 1, &base);
         cv::Point org(f.box.x, std::max(ts.height + 10, f.box.y - 6));
@@ -134,7 +138,8 @@ struct CacheRec {
 
 static std::string cacheSettingsKey(const AnalyzeOptions& opt) {
     std::ostringstream os;
-    os << "s2|minFace=" << opt.minFacePx << "|backend=" << (int)opt.backend << "|score=2";
+    os << "s2|minFace=" << opt.minFacePx << "|backend=" << (int)opt.backend << "|score=2"
+       << "|scoreFrom=" << opt.scoreMinPx;
     return os.str();
 }
 
@@ -367,10 +372,17 @@ ImageResult Analyzer::processOne(const fs::path& file, int idx, const AnalyzeOpt
     auto t2 = clock_st::now();
 
     for (const auto& d : dets) {
-        sharp::Score s = sharp::scoreFace(img, d.box, d.lm);
         FaceResult fr;
         fr.box = d.box;
         fr.conf = d.conf;
+        if (opt.scoreMinPx > 0 && d.box.width < opt.scoreMinPx) {
+            // below the user's scoring size threshold: keep the detection but
+            // skip the sharpness computation entirely
+            fr.tooSmall = true;
+            r.faces.push_back(std::move(fr));
+            continue;
+        }
+        sharp::Score s = sharp::scoreFace(img, d.box, d.lm);
         fr.score = s.final0to100;
         fr.resFactor = s.resFactor;
         fr.metrics = s.raw;
@@ -381,20 +393,26 @@ ImageResult Analyzer::processOne(const fs::path& file, int idx, const AnalyzeOpt
     }
     r.analyzeMs = msSince(t2);
 
-    // Best face = sharpest among COMPLETE faces; if every face is missing
-    // components (occluded eye/mouth, profile, cropped by the frame) the image
-    // itself is graded D.
+    // Best face = sharpest among faces that are scoreable (big enough) and
+    // complete; images whose faces are all incomplete or all too small to
+    // score are graded D.
     if (!r.faces.empty()) {
+        bool anyScoreable = false;
         for (size_t i = 0; i < r.faces.size(); ++i) {
-            if (r.faces[i].incomplete) continue;
-            if (r.bestIdx < 0 || r.faces[i].score > r.faces[r.bestIdx].score) r.bestIdx = (int)i;
+            const FaceResult& f = r.faces[i];
+            if (f.tooSmall || f.incomplete) continue;
+            anyScoreable = true;
+            if (r.bestIdx < 0 || f.score > r.faces[r.bestIdx].score) r.bestIdx = (int)i;
         }
         if (r.bestIdx >= 0) {
             r.bestScore = r.faces[r.bestIdx].score;
             r.status = "ok";
-        } else {
+        } else if (anyScoreable) {
             r.bestScore = 0;
             r.status = "incomplete";
+        } else {
+            r.bestScore = 0;
+            r.status = "too_small";
         }
     } else {
         r.status = "no_face";
@@ -492,6 +510,7 @@ RunSummary Analyzer::run(const AnalyzeOptions& opt, const ResultFn& onResult,
         if (r.status == "ok") ++sum.ok;
         else if (r.status == "no_face") ++sum.noFace;
         else if (r.status == "incomplete") ++sum.incomplete;
+        else if (r.status == "too_small") ++sum.smallOnly;
         else if (r.status == "error") ++sum.errors;
         sum.totalFaces += (int)r.faces.size();
         sum.avgBest += r.bestScore;
@@ -583,6 +602,7 @@ RunSummary Analyzer::run(const AnalyzeOptions& opt, const ResultFn& onResult,
         fs::path rejRoot = opt.folder / "_apexface_rejects";
         for (auto& r : collected) {
             const bool reject = (r.status == "no_face") || (r.status == "incomplete") ||
+                                (r.status == "too_small") ||
                                 (r.status == "ok" && sharp::isGradeD(r.bestScore));
             if (!reject || r.srcPath.empty()) continue;
             std::error_code ec;

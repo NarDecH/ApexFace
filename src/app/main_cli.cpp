@@ -38,6 +38,8 @@ void printUsage() {
         "  --out <dir>          output folder (default: <folder>/_apexface_report)\n"
         "  --no-recursive       do not scan subfolders\n"
         "  --min-face <px>      minimum face size in pixels (default 28)\n"
+        "  --score-from <px>    compute sharpness only for faces at least this wide\n"
+        "                       (smaller faces are listed but not scored, default 0 = all)\n"
         "  --backend <name>     auto | cpu | cuda   (default auto)\n"
         "  --workers <n>        worker threads (0 = auto)\n"
         "  --no-annotated       do not save full-resolution annotated copies\n"
@@ -88,7 +90,7 @@ int main(int argc, char** argv) {
     bool recursive = true, exportAnnotated = true, exportCsv = true, exportJson = true, quiet = false;
     bool moveD = false, generateReport = true, useCache = true, restoreMoved = false;
     std::string gradesArg;
-    int minFace = 28, workers = 0, maxImages = 0;
+    int minFace = 28, workers = 0, maxImages = 0, scoreFrom = 0;
 
     folderArg = argv[1];
     for (int i = 2; i < argc; ++i) {
@@ -98,6 +100,7 @@ int main(int argc, char** argv) {
         else if (a == "--backend") ok = argValue(argc, argv, i, "--backend", backend);
         else if (a == "--dump-metrics") ok = argValue(argc, argv, i, "--dump-metrics", dumpMetrics);
         else if (a == "--min-face" && i + 1 < argc) minFace = atoi(argv[++i]);
+        else if (a == "--score-from" && i + 1 < argc) scoreFrom = atoi(argv[++i]);
         else if (a == "--workers" && i + 1 < argc) workers = atoi(argv[++i]);
         else if (a == "--max-images" && i + 1 < argc) maxImages = atoi(argv[++i]);
         else if (a == "--no-recursive") recursive = false;
@@ -183,6 +186,7 @@ int main(int argc, char** argv) {
     o.moveRejects = moveD;
     o.generateReport = generateReport;
     o.useCache = useCache;
+    o.scoreMinPx = scoreFrom;
     o.modelPathUtf8 = platform::utf8str(model);
     o.maxImages = maxImages;
 
@@ -257,6 +261,7 @@ int main(int argc, char** argv) {
               << "with faces  : " << sum.ok << "\n"
               << "no face     : " << sum.noFace << "\n"
               << "incomplete  : " << sum.incomplete << "\n"
+              << "too small   : " << sum.smallOnly << "\n"
               << "errors      : " << sum.errors << "\n"
               << "faces found : " << sum.totalFaces << "\n"
               << "best score  : " << sum.maxBest << " (" << sum.maxFile << ")\n"

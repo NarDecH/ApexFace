@@ -43,14 +43,20 @@ footer{color:var(--muted);font-size:13px;margin-top:50px;text-align:center;borde
 <li><span class="tag add">Added</span> <b>Recent folders</b> — the last five source folders remembered (dropdown under the path).</li>
 <li><span class="tag add">Added</span> <b>Restore moved rejects</b> — every move is journaled to <code>_apexface_moved.tsv</code>; a GUI button or <code>--restore-moved</code> moves everything back. Round-trip verified.</li>
 <li><span class="tag add">Added</span> <b>Unit tests + CI</b> — <code>tests/test_core.cpp</code> via ctest; GitHub Actions builds on windows-latest with OpenCV from vcpkg and runs the tests on every push.</li>
-<li><span class="tag add">Added</span> <code>--autorun</code> â <code>ApexFace.exe &lt;folder&gt; --autorun</code> starts the analysis immediately on launch (demo/screen-capture friendly).</li>
+<li><span class="tag add">Added</span> <code>--autorun</code> — <code>ApexFace.exe &lt;folder&gt; --autorun</code> starts the analysis immediately on launch (demo/screen-capture friendly).</li>
 </ul>
 </div>
 
 <div class="release">
-<h2><span class="ver">1.0.6</span> <span class="date">â 2026-10-27</span></h2>
+<h2><span class="ver">1.0.7</span> <span class="date">— 2026-10-27</span></h2>
 <ul>
-<li><span class="tag add">Added</span> <b>Configurable grade thresholds</b> â the A+/A/B/C boundaries are user-settable: four sliders in the GUI (kept strictly increasing, with a reset button) or <code>--grades A+,A,B,C</code> on the CLI. Ratings in the GUI, report, CSV/JSON and the move-rejects decision all follow the configured thresholds; raw scores are unaffected so the result cache stays valid. Defaults remain 85/72/58/42.</li>
+<li><span class="tag add">Added</span> <b>Scoring size threshold</b> — a new "Score faces from (px)" slider (GUI) and <code>--score-from &lt;px&gt;</code> (CLI): faces narrower than this are still detected and listed, but their sharpness is not computed (0 = score every detected face, the previous behavior). Images whose faces are all below the threshold are graded D ("too small"), included in move-rejects, and counted in their own report/GUI stat. The threshold is part of the result cache key, so changing it correctly triggers re-analysis.</li>
+</ul>
+</div>
+<div class="release">
+<h2><span class="ver">1.0.6</span> <span class="date">— 2026-10-27</span></h2>
+<ul>
+<li><span class="tag add">Added</span> <b>Configurable grade thresholds</b> — the A+/A/B/C boundaries are user-settable: four sliders in the GUI (kept strictly increasing, with a reset button) or <code>--grades A+,A,B,C</code> on the CLI. Ratings in the GUI, report, CSV/JSON and the move-rejects decision all follow the configured thresholds; raw scores are unaffected so the result cache stays valid. Defaults remain 85/72/58/42.</li>
 </ul>
 </div>
 <div class="release">

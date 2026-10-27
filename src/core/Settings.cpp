@@ -32,6 +32,7 @@ bool Settings::load(const fs::path& file) {
         rb("generateReport", generateReport, true);
         rb("moveRejects", moveRejects, false);
         rb("useCache", useCache, true);
+        ri("scoreMinPx", scoreMinPx, 0);
         {
             // grade boundaries; sanitize by sorting ascending -> c,b,a,aPlus
             double g[4] = {85, 72, 58, 42};
@@ -75,6 +76,7 @@ bool Settings::save(const fs::path& file) const {
         f << "generateReport" << generateReport;
         f << "moveRejects" << moveRejects;
         f << "useCache" << useCache;
+        f << "scoreMinPx" << scoreMinPx;
         f << "gradeAPlus" << gradeAPlus;
         f << "gradeA" << gradeA;
         f << "gradeB" << gradeB;

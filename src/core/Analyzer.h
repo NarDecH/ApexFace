@@ -42,6 +42,7 @@ struct AnalyzeOptions {
     bool moveRejects = false;  // move grade-D / no-face originals to <folder>/_apexface_rejects
     bool generateReport = true; // false = scoring pass only: no thumbs/annotated files
     bool useCache = true;      // reuse results of unchanged files (cached in <outDir>)
+    int scoreMinPx = 0;        // score only faces at least this wide (0 = all detected faces)
 };
 
 struct FaceResult {
@@ -52,6 +53,7 @@ struct FaceResult {
     double resFactor = 1;
     bool incomplete = false; // missing key components (occluded eye / mouth / profile / cropped)
     std::string missing;     // which parts, e.g. "an eye + mouth" (empty if complete)
+    bool tooSmall = false;   // below the user's scoring size threshold: detected, not scored
     FaceComponents components;
 };
 
@@ -64,7 +66,7 @@ struct ImageResult {
     std::vector<FaceResult> faces;
     int bestIdx = -1;
     double bestScore = 0;
-    std::string status;      // "ok" | "no_face" | "incomplete" | "error"
+    std::string status;      // "ok" | "no_face" | "incomplete" | "too_small" | "error"
     std::string error;
     double loadMs = 0, detectMs = 0, analyzeMs = 0, totalMs = 0;
     std::string thumbRel;      // relative to outDir
@@ -79,7 +81,7 @@ struct ImageResult {
 };
 
 struct RunSummary {
-    int total = 0, ok = 0, noFace = 0, incomplete = 0, errors = 0;
+    int total = 0, ok = 0, noFace = 0, incomplete = 0, smallOnly = 0, errors = 0;
     int totalFaces = 0;
     double maxBest = 0, avgBest = 0;
     std::string maxFile;
