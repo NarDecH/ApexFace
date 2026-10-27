@@ -19,6 +19,7 @@ _Copter/
 
 # --- generated reports ---
 **/_apexface_report/
+**/_apexface_rejects/
 
 # --- keep model/fonts/samples tracked; ignore heavyweight junk elsewhere ---
 *.pth
