@@ -35,6 +35,7 @@ critically sharp. ApexFace automates the triage:
 | Sharpness score | Weighted multi-metric score (0–100), eye/mouth regions weighted extra via landmarks; small-face attenuation; ratings **A+ / A / B / C / D**; no-face photos *and* faces missing components (occluded eye/mouth, profile, cropped by frame) are graded D |
 | Burst grouping | Near-duplicate shots (64-bit dHash, ≤10 bits) are grouped and the ★ best shot of each group is marked in the report — one keeper per burst |
 | Per-run percentile | Every scored image reports "top X% of this run" |
+| Grades | Configurable: set the A+/A/B/C score boundaries in the GUI or with `--grades` |
 | Move rejects | Optionally move grade-D / no-face originals into `_apexface_rejects/` after the run (GUI checkbox or `--move-d`), keeping relative paths — every move is logged and listed in the report |
 | GUI | Dear ImGui docking UI: folder picker (native dialog), live progress, results table, preview panel with per-face metrics, log viewer, EN/ไทย toggle |
 | CLI | `apexface-cli <folder> [options]` for batch/scripted use, `--dump-metrics` for calibration |

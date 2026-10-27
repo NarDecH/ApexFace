@@ -1,4 +1,5 @@
 #include "Sharpness.h"
+#include "Logger.h"
 
 #include <opencv2/imgproc.hpp>
 
@@ -12,6 +13,22 @@ static Config g_cfg = {/*kLap*/ 350.0, /*kTen*/ 1200.0, /*fftRef*/ 0.0018,
                        /*smallFacePx*/ 96, /*smallFaceFloor*/ 0.55};
 
 const Config& config() { return g_cfg; }
+
+static GradeThresholds g_grades; // defaults 85/72/58/42
+
+const GradeThresholds& grades() { return g_grades; }
+
+void setGradeThresholds(const GradeThresholds& g) {
+    double v[4] = {g.aPlus, g.a, g.b, g.c};
+    for (double& x : v) x = std::clamp(x, 0.0, 100.0);
+    std::sort(v, v + 4); // ascending -> c, b, a, aPlus
+    g_grades.c = v[0];
+    g_grades.b = v[1];
+    g_grades.a = v[2];
+    g_grades.aPlus = v[3];
+    AF_DEBUG("grades", "thresholds: A+>=" << g_grades.aPlus << " A>=" << g_grades.a
+                                          << " B>=" << g_grades.b << " C>=" << g_grades.c);
+}
 
 static cv::Rect expandClamp(const cv::Mat& img, const cv::Rect& box, int marginPct) {
     int mx = std::max(2, box.width * marginPct / 100);
@@ -172,36 +189,36 @@ Score scoreFace(const cv::Mat& bgr, const cv::Rect& faceBox, const Config* cfgOv
 }
 
 char ratingLetter(double score) {
-    if (score >= 72) return 'A';
-    if (score >= 58) return 'B';
-    if (score >= 42) return 'C';
+    if (score >= g_grades.a) return 'A';
+    if (score >= g_grades.b) return 'B';
+    if (score >= g_grades.c) return 'C';
     return 'D';
 }
 
-bool ratingPlus(double score) { return score >= 85; }
+bool ratingPlus(double score) { return score >= g_grades.aPlus; }
 
 const char* ratingLabel(double score) {
-    if (score >= 85) return "A+";
-    if (score >= 72) return "A";
-    if (score >= 58) return "B";
-    if (score >= 42) return "C";
+    if (score >= g_grades.aPlus) return "A+";
+    if (score >= g_grades.a) return "A";
+    if (score >= g_grades.b) return "B";
+    if (score >= g_grades.c) return "C";
     return "D";
 }
 
 const char* ratingHex(double score) {
-    if (score >= 85) return "#10b981"; // emerald
-    if (score >= 72) return "#4ade80"; // green
-    if (score >= 58) return "#38bdf8"; // sky
-    if (score >= 42) return "#f59e0b"; // amber
-    return "#ef4444";                  // red
+    if (score >= g_grades.aPlus) return "#10b981"; // emerald
+    if (score >= g_grades.a) return "#4ade80";     // green
+    if (score >= g_grades.b) return "#38bdf8";     // sky
+    if (score >= g_grades.c) return "#f59e0b";     // amber
+    return "#ef4444";                              // red
 }
 
 cv::Scalar ratingBgr(double score) {
-    if (score >= 85) return {129, 185, 16};  // #10b981
-    if (score >= 72) return {128, 222, 74};  // #4ade80
-    if (score >= 58) return {248, 189, 56};  // #38bdf8
-    if (score >= 42) return {11, 158, 245};  // #f59e0b
-    return {68, 68, 239};                    // #ef4444
+    if (score >= g_grades.aPlus) return {129, 185, 16}; // #10b981
+    if (score >= g_grades.a) return {128, 222, 74};     // #4ade80
+    if (score >= g_grades.b) return {248, 189, 56};     // #38bdf8
+    if (score >= g_grades.c) return {11, 158, 245};     // #f59e0b
+    return {68, 68, 239};                               // #ef4444
 }
 
 } // namespace sharp

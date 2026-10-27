@@ -48,6 +48,7 @@ void printUsage() {
         "                       <folder>/_apexface_rejects after the run\n"
         "  --restore-moved      move files back from <folder>/_apexface_rejects\n"
         "                       (uses the move manifest) and exit\n"
+        "  --grades A+,A,B,C    custom grade boundaries (e.g. --grades 90,80,70,50)\n"
         "  --no-cache           ignore cached results, re-analyze everything\n"
         "  --max-images <n>     analyze only the first n images (testing)\n"
         "  --dump-metrics <f>   write per-face raw metrics CSV (calibration)\n"
@@ -86,6 +87,7 @@ int main(int argc, char** argv) {
     std::string folderArg, outArg, backend = "auto", dumpMetrics;
     bool recursive = true, exportAnnotated = true, exportCsv = true, exportJson = true, quiet = false;
     bool moveD = false, generateReport = true, useCache = true, restoreMoved = false;
+    std::string gradesArg;
     int minFace = 28, workers = 0, maxImages = 0;
 
     folderArg = argv[1];
@@ -106,6 +108,7 @@ int main(int argc, char** argv) {
         else if (a == "--move-d") moveD = true;
         else if (a == "--restore-moved") restoreMoved = true;
         else if (a == "--no-cache") useCache = false;
+        else if (a == "--grades") ok = argValue(argc, argv, i, "--grades", gradesArg);
         else if (a == "--quiet") quiet = true;
         else {
             std::cerr << "unknown option: " << a << "\n";
@@ -141,6 +144,31 @@ int main(int argc, char** argv) {
     lc.consoleEcho = true;
     lc.consoleLevel = quiet ? LogLevel::Warn : LogLevel::Info;
     lc.fileLevel = LogLevel::Trace;
+    if (!gradesArg.empty()) {
+        sharp::GradeThresholds g;
+        double v[4] = {g.aPlus, g.a, g.b, g.c};
+        int n = 0;
+        size_t start = 0;
+        while (n < 4 && start <= gradesArg.size()) {
+            size_t pos = gradesArg.find(',', start);
+            std::string tok = gradesArg.substr(start, pos == std::string::npos
+                                                         ? std::string::npos
+                                                         : pos - start);
+            v[n++] = atof(tok.c_str());
+            if (pos == std::string::npos) break;
+            start = pos + 1;
+        }
+        if (n == 4) {
+            sharp::setGradeThresholds({v[0], v[1], v[2], v[3]});
+            const auto& gr = sharp::grades();
+            std::cout << "grade thresholds: A+>=" << gr.aPlus << " A>=" << gr.a
+                      << " B>=" << gr.b << " C>=" << gr.c << "\n";
+        } else {
+            std::cerr << "--grades expects 4 comma-separated numbers\n";
+            return 2;
+        }
+    }
+
     Logger::instance().start(lc);
     AF_INFO("cli", "ApexFace " APEXFACE_VERSION " CLI started");
 

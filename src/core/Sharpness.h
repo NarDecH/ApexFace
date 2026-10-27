@@ -45,14 +45,27 @@ Score scoreFace(const cv::Mat& bgrFullRes, const cv::Rect& faceBox, const cv::Po
                 const Config* cfgOverride = nullptr);
 
 // Rating scale: A+ >= 85, A >= 72, B >= 58, C >= 42, D otherwise.
+// Grade scale: A+ >= aPlus, A >= a, B >= b, C >= c, D below c.
+// The thresholds are user-configurable (GUI sliders / CLI --grades); the
+// setter sanitizes the values so they stay strictly increasing.
+struct GradeThresholds {
+    double aPlus = 85;
+    double a = 72;
+    double b = 58;
+    double c = 42;
+};
+
+const GradeThresholds& grades();
+void setGradeThresholds(const GradeThresholds& g); // sorts + clamps to [0,100]
+
 char ratingLetter(double score);       // 'A'/'B'/'C'/'D' ('+' from plusLetter)
 bool ratingPlus(double score);
 const char* ratingLabel(double score); // "A+","A","B","C","D"
 const char* ratingHex(double score);   // CSS color
 cv::Scalar ratingBgr(double score);    // OpenCV color
 
-// Grade D boundary: images whose best face scores below this (and images
-// where no face was found at all) are treated as rejects.
-inline bool isGradeD(double score) { return score < 42.0; }
+// Grade D boundary (user-configurable): images whose best face scores below
+// this - and images where no complete face was found - are treated as rejects.
+inline bool isGradeD(double score) { return score < grades().c; }
 
 } // namespace sharp

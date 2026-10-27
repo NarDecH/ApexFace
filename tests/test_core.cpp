@@ -97,6 +97,22 @@ int main() {
         CHECK(err.empty());
     }
 
+    // ---- configurable grade thresholds
+    sharp::setGradeThresholds({90, 80, 70, 60});
+    CHECK(std::string(sharp::ratingLabel(95.0)) == "A+");
+    CHECK(std::string(sharp::ratingLabel(85.0)) == "A"); // was A+ with defaults
+    CHECK(std::string(sharp::ratingLabel(55.0)) == "D"); // below C=60
+    CHECK(sharp::isGradeD(55.0));
+    CHECK(!sharp::isGradeD(65.0));
+    // out-of-order input is sanitized (sorted ascending -> c,b,a,aPlus)
+    sharp::setGradeThresholds({10, 90, 50, 30});
+    const auto& g = sharp::grades();
+    CHECK(g.c == 10 && g.b == 30 && g.a == 50 && g.aPlus == 90);
+    // restore defaults
+    sharp::setGradeThresholds(sharp::GradeThresholds{});
+    CHECK(std::string(sharp::ratingLabel(85.0)) == "A+");
+    CHECK(std::string(sharp::ratingLabel(41.9)) == "D");
+
     if (failures) {
         printf("%d failure(s)\n", failures);
         return 1;

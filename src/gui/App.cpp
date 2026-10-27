@@ -170,6 +170,7 @@ int App::run(const wchar_t* initialFolderWide, bool autoStart) {
         st_.addRecentFolder(st_.lastFolder);
     }
     autoStart_ = autoStart;
+    sharp::setGradeThresholds({st_.gradeAPlus, st_.gradeA, st_.gradeB, st_.gradeC});
     tr_.lang = st_.lang;
 
     Logger::Config lc;
@@ -599,6 +600,41 @@ void App::drawControls() {
                               "re-analysis.",
                               "ข้ามไฟล์ที่ขนาดและวันแก้ไขไม่เปลี่ยนจากรันล่าสุดในโฟลเดอร์ผลลัพธ์เดียวกัน "
                               "ปิดเพื่อบังคับวิเคราะห์ใหม่ทั้งหมด"));
+    }
+
+    // grade thresholds (kept strictly increasing by clamping slider ranges)
+    section(tr_("Grade thresholds", "เกณฑ์คะแนนแต่ละเกรด"));
+    const float gmin = 5.0f, gmax = 100.0f;
+    float fAPlus = (float)st_.gradeAPlus, fA = (float)st_.gradeA, fB = (float)st_.gradeB,
+          fC = (float)st_.gradeC;
+    bool gradesEdited = false;
+    if (ImGui::SliderFloat(tr_("A+ from", "A+ ตั้งแต่"), &fAPlus,
+                           std::max(gmin, fA + 1.0f), gmax, "%.0f"))
+        gradesEdited = true;
+    if (ImGui::SliderFloat(tr_("A from", "A ตั้งแต่"), &fA,
+                           std::max(gmin, fB + 1.0f), std::min(gmax, fAPlus - 1.0f), "%.0f"))
+        gradesEdited = true;
+    if (ImGui::SliderFloat(tr_("B from", "B ตั้งแต่"), &fB,
+                           std::max(gmin, fC + 1.0f), std::min(gmax, fA - 1.0f), "%.0f"))
+        gradesEdited = true;
+    if (ImGui::SliderFloat(tr_("C from (below = D)", "C ตั้งแต่ (ต่ำกว่านี้ = D)"), &fC, gmin,
+                           std::min(gmax, fB - 1.0f), "%.0f"))
+        gradesEdited = true;
+    ImGui::SameLine();
+    if (ImGui::SmallButton(tr_("Reset", "ค่าเริ่มต้น"))) {
+        fAPlus = 85;
+        fA = 72;
+        fB = 58;
+        fC = 42;
+        gradesEdited = true;
+    }
+    if (gradesEdited) {
+        st_.gradeAPlus = fAPlus;
+        st_.gradeA = fA;
+        st_.gradeB = fB;
+        st_.gradeC = fC;
+        sharp::setGradeThresholds({st_.gradeAPlus, st_.gradeA, st_.gradeB, st_.gradeC});
+        st_.save(Settings::defaultPath());
     }
     // restore moved rejects when a manifest exists for this source folder
     if (lastRestoreCheckFolder_ != st_.lastFolder) {

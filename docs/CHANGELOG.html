@@ -48,6 +48,12 @@ footer{color:var(--muted);font-size:13px;margin-top:50px;text-align:center;borde
 </div>
 
 <div class="release">
+<h2><span class="ver">1.0.6</span> <span class="date">â 2026-10-27</span></h2>
+<ul>
+<li><span class="tag add">Added</span> <b>Configurable grade thresholds</b> â the A+/A/B/C boundaries are user-settable: four sliders in the GUI (kept strictly increasing, with a reset button) or <code>--grades A+,A,B,C</code> on the CLI. Ratings in the GUI, report, CSV/JSON and the move-rejects decision all follow the configured thresholds; raw scores are unaffected so the result cache stays valid. Defaults remain 85/72/58/42.</li>
+</ul>
+</div>
+<div class="release">
 <h2><span class="ver">1.0.5</span> <span class="date">— 2026-10-27</span></h2>
 <ul>
 <li><span class="tag add">Added</span> <b>Application icon &amp; logo</b> — the magnifier-on-face logo (drawn with OpenCV, <code>tools/make_icon.cpp</code>) is embedded into <code>ApexFace.exe</code> (window, taskbar, Explorer) together with a VERSIONINFO resource, and used as the logo in the README. Regenerate with <code>scripts/make_icon.bat</code>.</li>

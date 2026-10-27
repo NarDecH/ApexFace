@@ -20,6 +20,10 @@ struct Settings {
     bool generateReport = true; // false = scoring pass only: no thumbs/annotated/HTML/CSV/JSON
     bool moveRejects = false;   // move grade-D / no-face files to <folder>/_apexface_rejects
     bool useCache = true;       // reuse results of unchanged files
+    double gradeAPlus = 85;     // user-configurable grade boundaries (C < B < A < A+)
+    double gradeA = 72;
+    double gradeB = 58;
+    double gradeC = 42;
     int reportCardsPerPage = 200;
     std::string logLevel = "trace"; // trace | debug | info | warn | error
     std::string lang = "en";        // en | th
